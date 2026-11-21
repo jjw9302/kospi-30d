@@ -171,6 +171,21 @@
     .chart-wrap { position: relative; width: 100%; height: 340px; }
     .chart-wrap.sm { height: 260px; }
     canvas { width: 100%; height: 100%; display: block; }
+    .pan-bar-wrap {
+      display: flex; align-items: center; gap: 8px; margin-top: 10px;
+    }
+    .pan-track {
+      position: relative; flex: 1; height: 14px; border-radius: 999px;
+      background: var(--hover); border: 1px solid var(--border);
+      cursor: pointer; touch-action: none; user-select: none; overflow: hidden;
+    }
+    .pan-thumb {
+      position: absolute; top: 1px; bottom: 1px; min-width: 28px;
+      border-radius: 999px; background: var(--ma20); opacity: 0.82;
+      cursor: grab; transition: opacity 0.15s ease;
+    }
+    .pan-thumb:hover, .pan-thumb.dragging { opacity: 1; }
+    .pan-thumb.dragging { cursor: grabbing; }
 
     /* TXT Stats Viewer */
     .txt-pre {
@@ -382,9 +397,11 @@
             <div class="chart-wrap">
               <canvas id="chart5y" style="cursor:grab; touch-action:none;"></canvas>
             </div>
-            <div style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+            <div id="panBarWrap" class="pan-bar-wrap" style="display:none;">
               <button id="panLeftBtn" class="btn" style="padding:3px 8px;" title="과거 방향으로 이동">◀</button>
-              <input id="panSlider5y" type="range" min="0" max="1000" value="1000" style="flex:1; accent-color:var(--ma20); cursor:pointer;" aria-label="차트 좌우 이동 스크롤바" />
+              <div id="panTrack" class="pan-track" aria-label="차트 보이는 구간 드래그바">
+                <div id="panThumb" class="pan-thumb"></div>
+              </div>
               <button id="panRightBtn" class="btn" style="padding:3px 8px;" title="최신 방향으로 이동">▶</button>
             </div>
           </section>
@@ -657,15 +674,28 @@
     let dragState = null;  // { mode, startX, currX, origStart, origEnd }
     let cachedBase5y = null; // { asc, dailyMas, weeklyMas, weeklyCrosses }
 
-    const elPanSlider = document.getElementById("panSlider5y");
+    const elPanBarWrap = document.getElementById("panBarWrap");
+    const elPanTrack = document.getElementById("panTrack");
+    const elPanThumb = document.getElementById("panThumb");
+
     function syncPanSlider() {
       if (!cachedBase5y) return;
       const n = cachedBase5y.asc.length;
+      const maxIdx = Math.max(1, n - 1);
       const span = zoom5y.end - zoom5y.start;
-      const maxStart = Math.max(0, (n - 1) - span);
-      elPanSlider.max = String(maxStart);
-      elPanSlider.value = String(zoom5y.start);
-      elPanSlider.disabled = maxStart === 0;
+      if (span >= maxIdx) {
+        elPanBarWrap.style.display = "none";
+        return;
+      }
+      elPanBarWrap.style.display = "flex";
+      const trackW = elPanTrack.clientWidth || 300;
+      const rawThumbW = (span / maxIdx) * trackW;
+      const thumbW = Math.max(28, Math.min(trackW, rawThumbW));
+      const maxLeftPx = Math.max(0, trackW - thumbW);
+      const maxStart = Math.max(1, maxIdx - span);
+      const leftPx = (zoom5y.start / maxStart) * maxLeftPx;
+      elPanThumb.style.width = `${thumbW}px`;
+      elPanThumb.style.left = `${leftPx}px`;
     }
 
     function build5yCache() {
@@ -675,21 +705,37 @@
       const dailyMas = {};
       for (const p of periods) dailyMas[p] = calcSMA(dCloses, p);
 
-      // Compute weekly MAs and map each ISO week's MA onto daily bars (with week-end markers)
+      // Compute weekly MAs and linearly interpolate between consecutive week-end daily indices for silky smooth curves
       const weekly = buildWeekly(asc);
       const wCloses = weekly.map((w) => w.close);
       const wRawMas = {};
       for (const p of periods) wRawMas[p] = calcSMA(wCloses, p);
 
-      const weekIndexByKey = new Map();
-      weekly.forEach((w, idx) => weekIndexByKey.set(isoWeekKey(w.date), idx));
+      const dateToDailyIdx = new Map();
+      asc.forEach((d, idx) => dateToDailyIdx.set(d.date, idx));
+      const weekEndDailyIdxs = weekly.map((w) => dateToDailyIdx.get(w.date));
 
       const weeklyMas = {};
       for (const p of periods) {
-        weeklyMas[p] = asc.map((d) => {
-          const wi = weekIndexByKey.get(isoWeekKey(d.date));
-          return wi !== undefined ? wRawMas[p][wi] : null;
-        });
+        const arr = new Array(asc.length).fill(null);
+        const pts = [];
+        for (let wi = 0; wi < weekly.length; wi++) {
+          const val = wRawMas[p][wi];
+          const di = weekEndDailyIdxs[wi];
+          if (val !== null && di !== undefined) pts.push({ di, val });
+        }
+        for (let k = 0; k < pts.length; k++) {
+          arr[pts[k].di] = pts[k].val;
+          if (k + 1 < pts.length) {
+            const a = pts[k], b = pts[k + 1];
+            const dist = b.di - a.di;
+            for (let di = a.di + 1; di < b.di; di++) {
+              const t = (di - a.di) / dist;
+              arr[di] = a.val + (b.val - a.val) * t;
+            }
+          }
+        }
+        weeklyMas[p] = arr;
       }
 
       // Weekly MA5 x MA20 crossover dates mapped to daily index
@@ -817,11 +863,53 @@
     document.getElementById("zoomInBtn").addEventListener("click", () => zoomAroundRatio(0.65, 0.5));
     document.getElementById("zoomOutBtn").addEventListener("click", () => zoomAroundRatio(1.5, 0.5));
     document.getElementById("zoomResetBtn").addEventListener("click", () => applyYearPreset(5, true));
-    elPanSlider.addEventListener("input", () => {
+    // Custom proportional scrollbar thumb drag (mouse + touch) & track click
+    let thumbDrag = null;
+    function startThumbDrag(clientX) {
       if (!cachedBase5y) return;
+      const trackW = elPanTrack.clientWidth || 300;
+      const thumbW = elPanThumb.offsetWidth || 28;
+      thumbDrag = {
+        startX: clientX,
+        origStart: zoom5y.start,
+        span: zoom5y.end - zoom5y.start,
+        maxLeftPx: Math.max(1, trackW - thumbW),
+        maxStart: Math.max(1, (cachedBase5y.asc.length - 1) - (zoom5y.end - zoom5y.start)),
+      };
+      elPanThumb.classList.add("dragging");
+    }
+    function moveThumbDrag(clientX) {
+      if (!thumbDrag || !cachedBase5y) return;
+      const dx = clientX - thumbDrag.startX;
+      const deltaIdx = Math.round((dx / thumbDrag.maxLeftPx) * thumbDrag.maxStart);
+      const newStart = Math.max(0, Math.min(thumbDrag.maxStart, thumbDrag.origStart + deltaIdx));
+      clampZoom(newStart, newStart + thumbDrag.span);
+      document.querySelectorAll(".rng-btn").forEach((b) => b.classList.remove("active"));
+      draw5yChart();
+    }
+    function endThumbDrag() {
+      if (!thumbDrag) return;
+      thumbDrag = null;
+      elPanThumb.classList.remove("dragging");
+    }
+    elPanThumb.addEventListener("mousedown", (e) => { e.stopPropagation(); startThumbDrag(e.clientX); });
+    window.addEventListener("mousemove", (e) => { if (thumbDrag) moveThumbDrag(e.clientX); });
+    window.addEventListener("mouseup", endThumbDrag);
+    elPanThumb.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 1) { e.stopPropagation(); startThumbDrag(e.touches[0].clientX); }
+    }, { passive: true });
+    window.addEventListener("touchmove", (e) => {
+      if (thumbDrag && e.touches.length === 1) { e.preventDefault(); moveThumbDrag(e.touches[0].clientX); }
+    }, { passive: false });
+    window.addEventListener("touchend", endThumbDrag);
+
+    elPanTrack.addEventListener("mousedown", (e) => {
+      if (e.target === elPanThumb || !cachedBase5y) return;
+      const rect = elPanTrack.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       const span = zoom5y.end - zoom5y.start;
-      const newStart = Number(elPanSlider.value);
-      clampZoom(newStart, newStart + span);
+      const center = Math.round(ratio * (cachedBase5y.asc.length - 1));
+      clampZoom(center - Math.floor(span / 2), center + Math.ceil(span / 2));
       document.querySelectorAll(".rng-btn").forEach((b) => b.classList.remove("active"));
       draw5yChart();
     });
@@ -962,20 +1050,31 @@
       ctx5.lineJoin = "round";
       ctx5.stroke();
 
-      // Moving Averages
+      // Moving Averages (smooth quadratic Bezier curves)
       for (const p of periods) {
         if (!maEnabled[p]) continue;
         const arr = mas[p];
-        ctx5.beginPath();
-        let started = false;
+        const pts = [];
         for (let i = 0; i < arr.length; i++) {
-          if (arr[i] === null) continue;
-          const x = xFor(i), y = yFor(arr[i]);
-          if (!started) { ctx5.moveTo(x, y); started = true; }
-          else ctx5.lineTo(x, y);
+          if (arr[i] !== null) pts.push({ x: xFor(i), y: yFor(arr[i]) });
+        }
+        if (pts.length < 2) continue;
+        ctx5.beginPath();
+        ctx5.moveTo(pts[0].x, pts[0].y);
+        if (tf5y === "weekly" && pts.length > 2) {
+          for (let k = 1; k < pts.length - 1; k++) {
+            const mx = (pts[k].x + pts[k + 1].x) / 2;
+            const my = (pts[k].y + pts[k + 1].y) / 2;
+            ctx5.quadraticCurveTo(pts[k].x, pts[k].y, mx, my);
+          }
+          ctx5.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+        } else {
+          for (let k = 1; k < pts.length; k++) ctx5.lineTo(pts[k].x, pts[k].y);
         }
         ctx5.strokeStyle = cssVar(MA_COLORS[p]);
-        ctx5.lineWidth = tf5y === "weekly" ? 2.0 : 1.7;
+        ctx5.lineWidth = tf5y === "weekly" ? 2.1 : 1.7;
+        ctx5.lineCap = "round";
+        ctx5.lineJoin = "round";
         ctx5.stroke();
       }
 
