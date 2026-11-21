@@ -1,13 +1,32 @@
-name: Update KOSPI 30-Day Dashboard
+name: Update & Verify KOSPI Data
 
 on:
   schedule:
-    # 매주 월~금 오후 4시 30분 KST (UTC 07:30) 자동 실행
-    - cron: "30 7 * * 1-5"
-  workflow_dispatch: # GitHub 웹 UI에서 수동 실행도 가능
+    # 1) 10분 1회: 최근 1주일치(7거래일) 데이터 비교·검증
+    - cron: "*/10 * * * *"
+    # 2) 주 1회 (매주 토요일 17:00 KST / UTC 08:00): 최근 1년치 비교·검증
+    - cron: "0 8 * * 6"
+    # 3) 월 1회 (매월 1일 18:00 KST / UTC 09:00): 전체 5년치 비교·검증
+    - cron: "0 9 1 * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "검증 및 갱신 모드"
+        required: true
+        default: "full"
+        type: choice
+        options:
+          - 10m
+          - weekly
+          - monthly
+          - full
 
 permissions:
   contents: write
+
+concurrency:
+  group: kospi-data-update
+  cancel-in-progress: false
 
 jobs:
   update:
@@ -21,17 +40,31 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Fetch latest KOSPI 30-day data & update index.html
-        run: python3 update_kospi.py
+      - name: Determine verification mode
+        id: mode
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run_mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 9 1 * *" ]; then
+            echo "run_mode=monthly" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 8 * * 6" ]; then
+            echo "run_mode=weekly" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_mode=10m" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Commit and push if changed
+      - name: Fetch & verify KOSPI data (${{ steps.mode.outputs.run_mode }})
+        run: python3 update_kospi.py --mode "${{ steps.mode.outputs.run_mode }}"
+
+      - name: Commit and push if data changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if ! git diff --quiet index.html; then
-            git add index.html
-            git commit -m "chore: update KOSPI 30-day data ($(date +'%Y-%m-%d'))"
+          if ! git diff --quiet data/; then
+            git add data/
+            git commit -m "chore(data): verify & update KOSPI [${{ steps.mode.outputs.run_mode }}] ($(date -u +'%Y-%m-%d %H:%M UTC'))"
             git push
           else
-            echo "No changes to commit."
+            echo "No data changes detected."
           fi
