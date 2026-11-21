@@ -836,24 +836,67 @@
     const c5 = document.getElementById("chart5y");
     const ctx5 = c5.getContext("2d");
 
-    // Touch pan support for mobile/tablet
-    let touchPan = null;
+    // Touch pan (1-finger) & pinch-to-zoom (2-finger) support
+    let touchState = null;
     c5.addEventListener("touchstart", (e) => {
-      if (!cachedBase5y || e.touches.length !== 1) return;
-      touchPan = { startX: e.touches[0].clientX, origStart: zoom5y.start, origEnd: zoom5y.end };
+      if (!cachedBase5y) return;
+      if (e.touches.length === 1) {
+        touchState = {
+          type: "pan",
+          startX: e.touches[0].clientX,
+          origStart: zoom5y.start,
+          origEnd: zoom5y.end,
+        };
+      } else if (e.touches.length === 2) {
+        const x1 = e.touches[0].clientX, x2 = e.touches[1].clientX;
+        const rect = c5.getBoundingClientRect();
+        const plotW = Math.max(50, rect.width - 78);
+        const midX = (x1 + x2) / 2;
+        touchState = {
+          type: "pinch",
+          startDist: Math.max(10, Math.abs(x2 - x1)),
+          ratio: Math.max(0, Math.min(1, (midX - rect.left - 60) / plotW)),
+          origStart: zoom5y.start,
+          origEnd: zoom5y.end,
+        };
+      }
     }, { passive: true });
+
     c5.addEventListener("touchmove", (e) => {
-      if (!touchPan || !cachedBase5y || e.touches.length !== 1) return;
+      if (!touchState || !cachedBase5y) return;
       e.preventDefault();
-      const rect = c5.getBoundingClientRect();
-      const plotW = Math.max(50, rect.width - 78);
-      const span = touchPan.origEnd - touchPan.origStart;
-      const deltaBars = Math.round(((touchPan.startX - e.touches[0].clientX) / plotW) * span);
-      clampZoom(touchPan.origStart + deltaBars, touchPan.origEnd + deltaBars);
-      document.querySelectorAll(".rng-btn").forEach((b) => b.classList.remove("active"));
-      draw5yChart();
+      if (touchState.type === "pan" && e.touches.length === 1) {
+        const rect = c5.getBoundingClientRect();
+        const plotW = Math.max(50, rect.width - 78);
+        const span = touchState.origEnd - touchState.origStart;
+        const deltaBars = Math.round(((touchState.startX - e.touches[0].clientX) / plotW) * span);
+        clampZoom(touchState.origStart + deltaBars, touchState.origEnd + deltaBars);
+        document.querySelectorAll(".rng-btn").forEach((b) => b.classList.remove("active"));
+        draw5yChart();
+      } else if (touchState.type === "pinch" && e.touches.length === 2) {
+        const dist = Math.max(10, Math.abs(e.touches[1].clientX - e.touches[0].clientX));
+        const scale = touchState.startDist / dist; // fingers apart -> dist grows -> scale < 1 -> zoom in
+        const origSpan = touchState.origEnd - touchState.origStart;
+        const newSpan = Math.max(20, Math.min(cachedBase5y.asc.length - 1, Math.round(origSpan * scale)));
+        const anchor = touchState.origStart + origSpan * touchState.ratio;
+        clampZoom(anchor - newSpan * touchState.ratio, anchor + newSpan * (1 - touchState.ratio));
+        document.querySelectorAll(".rng-btn").forEach((b) => b.classList.remove("active"));
+        draw5yChart();
+      }
     }, { passive: false });
-    c5.addEventListener("touchend", () => { touchPan = null; });
+
+    c5.addEventListener("touchend", (e) => {
+      if (e.touches.length === 1 && cachedBase5y) {
+        touchState = {
+          type: "pan",
+          startX: e.touches[0].clientX,
+          origStart: zoom5y.start,
+          origEnd: zoom5y.end,
+        };
+      } else {
+        touchState = null;
+      }
+    });
 
     function draw5yChart() {
       if (!ALL_ROWS.length) return;
