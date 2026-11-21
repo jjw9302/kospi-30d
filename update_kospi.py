@@ -149,11 +149,13 @@ def build_stats_txt(rows_desc: list[dict], mode: str, diff_count: int, checked_c
     d_ma60 = sma(d_closes, 60)[-1]
     d_ma120 = sma(d_closes, 120)[-1]
 
-    # Weekly MA5 / MA20 & crossovers
+    # Weekly MA5 / MA20 / MA60 / MA120 & crossovers
     weekly = compute_weekly_bars(asc)
     w_closes = [w["close"] for w in weekly]
     w_ma5 = sma(w_closes, 5)
     w_ma20 = sma(w_closes, 20)
+    w_ma60 = sma(w_closes, 60)
+    w_ma120 = sma(w_closes, 120)
 
     crosses = []
     for i in range(1, len(weekly)):
@@ -166,6 +168,7 @@ def build_stats_txt(rows_desc: list[dict], mode: str, diff_count: int, checked_c
         elif prev_d >= 0 > curr_d:
             crosses.append((weekly[i]["date"], "데드크로스 (주5 ↓ 주20)", weekly[i]["close"]))
 
+    fmt_ma = lambda v: f"{v:,.2f}" if v is not None else "-"
     lines = [
         "============================================================",
         "  KOSPI 최근 5년 통계 요약 (출처: 네이버 증권)",
@@ -183,8 +186,8 @@ def build_stats_txt(rows_desc: list[dict], mode: str, diff_count: int, checked_c
         f"  - 상승일 / 하락일           : {up_days:,}일 / {down_days:,}일 (승률 {up_days / len(rows_desc) * 100:.1f}%)",
         "",
         "[2. 이동평균선 현황]",
-        f"  - 일봉 MA5 / MA20 / MA60 / MA120 : {d_ma5:,.2f} / {d_ma20:,.2f} / {d_ma60:,.2f} / {d_ma120:,.2f}",
-        f"  - 주봉 주5 / 주20                : {w_ma5[-1]:,.2f} / {w_ma20[-1]:,.2f} ({'정배열(주5>주20)' if w_ma5[-1] >= w_ma20[-1] else '역배열(주5<주20)'})",
+        f"  - 일봉 MA5 / MA20 / MA60 / MA120 : {fmt_ma(d_ma5)} / {fmt_ma(d_ma20)} / {fmt_ma(d_ma60)} / {fmt_ma(d_ma120)}",
+        f"  - 주봉 주5 / 주20 / 주60 / 주120 : {fmt_ma(w_ma5[-1])} / {fmt_ma(w_ma20[-1])} / {fmt_ma(w_ma60[-1])} / {fmt_ma(w_ma120[-1])} ({'정배열(주5>주20)' if w_ma5[-1] >= w_ma20[-1] else '역배열(주5<주20)'})",
         "",
         "[3. 주5 · 주20 이평선 교차 이력 (최근 6건)]",
     ]
