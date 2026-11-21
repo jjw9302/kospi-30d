@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>KOSPI 최근 30거래일 기록 — Market Dashboard</title>
+  <title>KOSPI 5년 · 30일 · 명심보감 — Market Dashboard</title>
   <style>
     :root {
       --bg: #f8fafc;
@@ -17,9 +17,14 @@
       --accent-soft: #eff6ff;
       --accent-fg: #1d4ed8;
       --hover: #f1f5f9;
-      --line: #2563eb;
+      --line: #0f172a;
+      --ma5: #ef4444;
+      --ma20: #2563eb;
+      --ma60: #10b981;
+      --ma120: #a855f7;
       --up: #e11d48;
       --down: #2563eb;
+      --code-bg: #f1f5f9;
     }
     [data-theme="dark"] {
       --bg: #0b1120;
@@ -33,9 +38,14 @@
       --accent-soft: rgba(59, 130, 246, 0.16);
       --accent-fg: #60a5fa;
       --hover: #1e293b;
-      --line: #60a5fa;
+      --line: #e2e8f0;
+      --ma5: #f87171;
+      --ma20: #60a5fa;
+      --ma60: #34d399;
+      --ma120: #c084fc;
       --up: #fb7185;
       --down: #60a5fa;
+      --code-bg: #0f172a;
     }
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
@@ -45,173 +55,87 @@
       color: var(--fg);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
       font-size: 14px;
-      line-height: 1.5;
+      line-height: 1.55;
     }
 
-    /* App Shell with Left Sidebar */
-    .layout {
-      display: flex;
-      min-height: 100vh;
-    }
+    /* Layout */
+    .layout { display: flex; min-height: 100vh; }
     .sidebar {
-      width: 240px;
-      flex-shrink: 0;
-      background: var(--sidebar-bg);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      z-index: 30;
-      transition: transform 0.2s ease;
+      width: 256px; flex-shrink: 0; background: var(--sidebar-bg);
+      border-right: 1px solid var(--border); display: flex; flex-direction: column;
+      position: sticky; top: 0; height: 100vh; z-index: 30; transition: transform 0.2s ease;
     }
     .sidebar-brand {
-      padding: 18px 16px 14px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
+      padding: 18px 16px 14px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
     }
-    .brand-title {
-      font-weight: 800;
-      font-size: 15px;
-      letter-spacing: -0.02em;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .brand-title { font-weight: 800; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+    .brand-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ma20); display: inline-block; }
+
+    .nav-section { padding: 12px 10px; flex: 1; overflow-y: auto; }
+    .nav-group { margin-bottom: 6px; }
+    .nav-group-header {
+      display: flex; align-items: center; gap: 4px;
     }
-    .brand-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--line);
-      display: inline-block;
-    }
-    .nav-section {
-      padding: 14px 10px;
-      flex: 1;
-      overflow-y: auto;
-    }
-    .nav-label {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--muted);
-      padding: 0 10px 6px;
-    }
-    .nav-list {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .nav-link {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 9px 12px;
-      border-radius: 8px;
-      text-decoration: none;
-      color: var(--fg);
-      font-size: 13.5px;
-      font-weight: 500;
+    .nav-main-btn {
+      flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 9px 10px; border-radius: 8px; border: none; background: transparent;
+      color: var(--fg); font-size: 13.5px; font-weight: 600; cursor: pointer; text-align: left;
       transition: background 0.15s ease, color 0.15s ease;
     }
-    .nav-link:hover {
-      background: var(--hover);
+    .nav-main-btn:hover { background: var(--hover); }
+    .nav-main-btn.active { background: var(--accent-soft); color: var(--accent-fg); font-weight: 700; }
+    .nav-caret-btn {
+      width: 28px; height: 28px; border-radius: 6px; border: none; background: transparent;
+      color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 12px; transition: transform 0.18s ease, background 0.15s ease;
     }
-    .nav-link.active {
-      background: var(--accent-soft);
-      color: var(--accent-fg);
-      font-weight: 700;
+    .nav-caret-btn:hover { background: var(--hover); color: var(--fg); }
+    .nav-group.collapsed .nav-caret-btn { transform: rotate(-90deg); }
+    .nav-sub-list {
+      list-style: none; margin: 4px 0 6px; padding: 0 0 0 18px;
+      display: flex; flex-direction: column; gap: 2px;
+      border-left: 1px solid var(--border); margin-left: 16px;
     }
-    .nav-sub {
-      padding-left: 28px;
-      font-size: 12.5px;
-      color: var(--muted);
+    .nav-group.collapsed .nav-sub-list { display: none; }
+    .nav-sub-link {
+      display: block; padding: 6px 10px; border-radius: 6px; text-decoration: none;
+      color: var(--muted); font-size: 12.5px; cursor: pointer;
     }
-    .nav-sub:hover { color: var(--fg); }
+    .nav-sub-link:hover { background: var(--hover); color: var(--fg); }
+    .nav-sub-link.active { color: var(--accent-fg); font-weight: 600; }
     .nav-pill {
-      font-size: 10px;
-      font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 999px;
-      background: var(--primary);
-      color: var(--primary-fg);
+      font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 999px;
+      background: var(--primary); color: var(--primary-fg);
     }
-    .nav-divider {
-      height: 1px;
-      background: var(--border);
-      margin: 14px 10px;
-    }
+    .nav-divider { height: 1px; background: var(--border); margin: 12px 8px; }
     .sidebar-footer {
-      padding: 12px 14px;
-      border-top: 1px solid var(--border);
-      font-size: 12px;
-      color: var(--muted);
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+      padding: 12px 14px; border-top: 1px solid var(--border);
+      font-size: 11.5px; color: var(--muted); display: flex; flex-direction: column; gap: 4px;
     }
-    .sidebar-footer a {
-      color: var(--muted);
-      text-decoration: none;
-    }
-    .sidebar-footer a:hover { color: var(--fg); text-decoration: underline; }
 
-    /* Main Content */
-    .main-wrap {
-      flex: 1;
-      min-width: 0;
-      padding: 20px 24px 44px;
-    }
-    .container {
-      max-width: 1040px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
+    /* Main */
+    .main-wrap { flex: 1; min-width: 0; padding: 20px 24px 48px; }
+    .container { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+    .view-pane { display: none; flex-direction: column; gap: 16px; }
+    .view-pane.active { display: flex; }
+
     .mobile-bar {
-      display: none;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 16px;
-      background: var(--sidebar-bg);
-      border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      z-index: 20;
+      display: none; align-items: center; justify-content: space-between;
+      padding: 12px 16px; background: var(--sidebar-bg); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 20;
     }
-    .overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.45);
-      z-index: 25;
-    }
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 25; }
     .overlay.show { display: block; }
-
     @media (max-width: 860px) {
       .layout { display: block; }
       .mobile-bar { display: flex; }
-      .sidebar {
-        position: fixed;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        transform: translateX(-100%);
-      }
+      .sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); }
       .sidebar.open { transform: translateX(0); }
       .main-wrap { padding: 16px 14px 36px; }
     }
 
+    /* Components */
     .header {
       display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
       gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
@@ -223,601 +147,918 @@
     h1 { margin: 0; font-size: 20px; display: inline; vertical-align: middle; }
     .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
     .btn {
-      padding: 6px 12px; font-size: 12px; font-weight: 500; border-radius: 6px; cursor: pointer;
-      border: 1px solid var(--border); background: var(--card); color: var(--fg);
+      padding: 6px 11px; font-size: 12px; font-weight: 500; border-radius: 6px; cursor: pointer;
+      border: 1px solid var(--border); background: var(--card); color: var(--fg); text-decoration: none;
+      display: inline-flex; align-items: center; gap: 4px;
     }
     .btn:hover { background: var(--hover); }
     .btn.active { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+
     .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
     .kpi-label { font-size: 12px; color: var(--muted); }
-    .kpi-val { font-size: 22px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+    .kpi-val { font-size: 21px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
     .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
     .up { color: var(--up); }
     .down { color: var(--down); }
-    .chart-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
-    .chart-wrap { position: relative; width: 100%; height: 270px; }
+
+    /* Chart Controls */
+    .chart-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .ma-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 12px; }
+    .ma-toggle { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+    .swatch { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+    .chart-wrap { position: relative; width: 100%; height: 340px; }
+    .chart-wrap.sm { height: 260px; }
     canvas { width: 100%; height: 100%; display: block; }
+
+    /* TXT Stats Viewer */
+    .txt-pre {
+      margin: 0; padding: 14px 16px; border-radius: 8px;
+      background: var(--code-bg); border: 1px solid var(--border);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12.5px; line-height: 1.6; overflow-x: auto; white-space: pre;
+    }
+
+    /* Table */
     .table-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
     .table-head {
       display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
       gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border);
     }
-    .table-wrap { max-height: 460px; overflow-y: auto; }
+    .table-wrap { max-height: 440px; overflow-y: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
     thead th {
       position: sticky; top: 0; background: var(--card); color: var(--muted); font-weight: 600;
       padding: 10px 12px; border-bottom: 1px solid var(--border);
     }
-    tbody td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+    tbody td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
     tbody tr:hover { background: var(--hover); }
     th:first-child, td:first-child { text-align: left; padding-left: 16px; }
     th:last-child, td:last-child { padding-right: 16px; }
+    .search-input {
+      padding: 5px 10px; font-size: 12px; border-radius: 6px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--fg);
+    }
+
+    /* Myeongsimbogam */
+    .wisdom-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+    .wisdom-item {
+      padding: 18px 20px; border-radius: 10px; background: var(--card);
+      border: 1px solid var(--border); border-left: 4px solid var(--ma20);
+    }
+    .wisdom-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .wisdom-body { color: var(--fg); font-size: 14px; margin-bottom: 8px; }
+    .wisdom-link {
+      font-size: 13px; color: var(--accent-fg); text-decoration: none; font-weight: 600;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .wisdom-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
-  <!-- Mobile Header -->
+  <!-- Mobile Topbar -->
   <div class="mobile-bar">
     <div class="brand-title"><span class="brand-dot"></span> Market Dashboard</div>
-    <button id="menuToggleBtn" class="btn" aria-label="메뉴 열기">☰ 메뉴</button>
+    <div style="display:flex; gap:6px;">
+      <button id="themeBtnMobile" class="btn">다크</button>
+      <button id="menuToggleBtn" class="btn">☰ 메뉴</button>
+    </div>
   </div>
   <div id="sidebarOverlay" class="overlay"></div>
 
   <div class="layout">
-    <!-- Left Sidebar Menu -->
+    <!-- Left Sidebar Menu (Collapsible Submenus) -->
     <aside id="sidebar" class="sidebar" aria-label="좌측 메뉴">
       <div class="sidebar-brand">
         <div class="brand-title"><span class="brand-dot"></span> Market Dashboard</div>
+        <button id="themeBtn" class="btn" title="라이트/다크 모드 전환">다크</button>
       </div>
 
       <nav class="nav-section">
-        <div class="nav-label">메뉴</div>
-        <ul class="nav-list">
-          <!-- 최상위 메뉴: KOSPI 30D 페이지 연결 -->
-          <li>
-            <a href="./index.html#kospi-30d" class="nav-link active" id="navKospi30d">
+        <!-- 1. 코스피 5년 (최상위 메뉴) -->
+        <div class="nav-group" data-group="kospi5y">
+          <div class="nav-group-header">
+            <button class="nav-main-btn active" data-view="view-kospi-5y">
+              <span>📊 코스피 5년</span>
+              <span class="nav-pill">5Y</span>
+            </button>
+            <button class="nav-caret-btn" aria-label="하위 메뉴 펼치기/접기" title="펼치기/접기">▾</button>
+          </div>
+          <ul class="nav-sub-list">
+            <li><a class="nav-sub-link" data-view="view-kospi-5y" data-target="sec-5y-stats">5년 통계 (TXT)</a></li>
+            <li><a class="nav-sub-link" data-view="view-kospi-5y" data-target="sec-5y-chart">5년 차트 (이동평균선)</a></li>
+            <li><a class="nav-sub-link" data-view="view-kospi-5y" data-target="sec-5y-table">5년 일별 기록</a></li>
+          </ul>
+        </div>
+
+        <!-- 2. 코스피 30일 -->
+        <div class="nav-group collapsed" data-group="kospi30d">
+          <div class="nav-group-header">
+            <button class="nav-main-btn" data-view="view-kospi-30d">
               <span>📈 코스피 30일</span>
               <span class="nav-pill">30D</span>
-            </a>
-          </li>
-          <li><a href="#section-kpi" class="nav-link nav-sub">· 핵심 지표</a></li>
-          <li><a href="#section-chart" class="nav-link nav-sub">· 종가 추이 그래프</a></li>
-          <li><a href="#section-table" class="nav-link nav-sub">· 일별 상세 기록</a></li>
-        </ul>
+            </button>
+            <button class="nav-caret-btn" aria-label="하위 메뉴 펼치기/접기" title="펼치기/접기">▾</button>
+          </div>
+          <ul class="nav-sub-list">
+            <li><a class="nav-sub-link" data-view="view-kospi-30d" data-target="sec-30d-kpi">핵심 지표</a></li>
+            <li><a class="nav-sub-link" data-view="view-kospi-30d" data-target="sec-30d-chart">종가 추이 그래프</a></li>
+            <li><a class="nav-sub-link" data-view="view-kospi-30d" data-target="sec-30d-table">일별 상세 기록</a></li>
+          </ul>
+        </div>
+
+        <!-- 3. 명심보감 -->
+        <div class="nav-group" data-group="wisdom">
+          <div class="nav-group-header">
+            <button class="nav-main-btn" data-view="view-wisdom">
+              <span>📜 명심보감</span>
+            </button>
+            <button class="nav-caret-btn" aria-label="하위 메뉴 펼치기/접기" title="펼치기/접기">▾</button>
+          </div>
+          <ul class="nav-sub-list">
+            <li><a class="nav-sub-link" data-view="view-wisdom" data-target="w-magic">시간 복리 마법</a></li>
+            <li><a class="nav-sub-link" data-view="view-wisdom" data-target="w-mulmit">물밑-홈</a></li>
+            <li><a class="nav-sub-link" data-view="view-wisdom" data-target="w-naejae">내재-커버드콜</a></li>
+          </ul>
+        </div>
 
         <div class="nav-divider"></div>
 
-        <div class="nav-label">바로가기</div>
-        <ul class="nav-list">
-          <li>
-            <a href="https://finance.naver.com/sise/sise_index.naver?code=KOSPI" target="_blank" rel="noopener noreferrer" class="nav-link">
-              <span>네이버 증권 KOSPI</span>
-              <span style="font-size:11px; color:var(--muted);">↗</span>
-            </a>
-          </li>
-          <li>
-            <a href="https://github.com/jjw9302/kospi-30d" target="_blank" rel="noopener noreferrer" class="nav-link">
-              <span>GitHub 저장소</span>
-              <span style="font-size:11px; color:var(--muted);">↗</span>
-            </a>
-          </li>
-        </ul>
+        <!-- 4. 외부 링크 & 원본 파일 -->
+        <div class="nav-group collapsed" data-group="links">
+          <div class="nav-group-header">
+            <button class="nav-main-btn" data-toggle-only="true">
+              <span>🔗 참조 &amp; 원본 파일</span>
+            </button>
+            <button class="nav-caret-btn" aria-label="하위 메뉴 펼치기/접기" title="펼치기/접기">▾</button>
+          </div>
+          <ul class="nav-sub-list">
+            <li><a class="nav-sub-link" href="https://stock.naver.com/domestic/index/KOSPI/price" target="_blank" rel="noopener noreferrer">네이버 증권 KOSPI ↗</a></li>
+            <li><a class="nav-sub-link" href="./data/kospi_5y_stats.txt" target="_blank">5년 통계 TXT 원본 ↗</a></li>
+            <li><a class="nav-sub-link" href="./data/verify_log.txt" target="_blank">자동 검증 로그 TXT ↗</a></li>
+            <li><a class="nav-sub-link" href="https://github.com/jjw9302/kospi-30d" target="_blank" rel="noopener noreferrer">GitHub 저장소 ↗</a></li>
+          </ul>
+        </div>
       </nav>
 
       <div class="sidebar-footer">
-        <div>자동 갱신: 평일 16:30 KST</div>
-        <div>GitHub Actions · Pages</div>
+        <div>검증 주기: 10분(1주) · 주1회(1년) · 월1회(5년)</div>
+        <div id="footerUpdated">데이터 로딩 중...</div>
       </div>
     </aside>
 
-    <!-- Main Content Area -->
-    <main class="main-wrap" id="kospi-30d">
+    <!-- Main Views -->
+    <main class="main-wrap">
       <div class="container">
-        <header class="header">
-          <div>
-            <span class="badge">KOSPI</span>
-            <h1>코스피 최근 30거래일 기록</h1>
-            <div class="sub">출처: 네이버 증권 (2026-10-12 ~ 2026-11-20 · 총 30거래일)</div>
-          </div>
-          <div style="display:flex; gap:8px;">
-            <button id="csvBtn" class="btn">CSV 다운로드</button>
-            <button id="themeBtn" class="btn">다크 모드</button>
-          </div>
-        </header>
 
-        <section id="section-kpi" class="kpi-grid">
-          <div class="card">
-            <div class="kpi-label">최신 종가 (2026-11-20)</div>
-            <div id="kpiLatest" class="kpi-val">-</div>
-            <div id="kpiLatestSub" class="kpi-sub">-</div>
-          </div>
-          <div class="card">
-            <div class="kpi-label">30거래일 최고 (장중)</div>
-            <div id="kpiHigh" class="kpi-val">-</div>
-            <div id="kpiHighDate" class="kpi-sub">-</div>
-          </div>
-          <div class="card">
-            <div class="kpi-label">30거래일 최저 (장중)</div>
-            <div id="kpiLow" class="kpi-val">-</div>
-            <div id="kpiLowDate" class="kpi-sub">-</div>
-          </div>
-          <div class="card">
-            <div class="kpi-label">30거래일 변동 / 평균 종가</div>
-            <div id="kpiPeriod" class="kpi-val">-</div>
-            <div id="kpiAvg" class="kpi-sub">-</div>
-          </div>
-        </section>
-
-        <section id="section-chart" class="card">
-          <div class="chart-head">
-            <strong>종가 추이 그래프</strong>
-            <span id="hoverReadout" style="font-size:12px; color:var(--muted);">차트에 마우스를 올리면 일별 상세 수치가 표시됩니다.</span>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="kospiChart"></canvas>
-          </div>
-        </section>
-
-        <section id="section-table" class="table-card">
-          <div class="table-head">
-            <div><strong>일별 기록</strong> <span id="rowCount" style="font-size:12px; color:var(--muted); margin-left:6px;">30건</span></div>
-            <div style="display:flex; gap:6px;">
-              <button data-filter="all" class="btn filter-btn active">전체</button>
-              <button data-filter="up" class="btn filter-btn">상승일</button>
-              <button data-filter="down" class="btn filter-btn">하락일</button>
-              <button id="sortBtn" class="btn">최신순 ↓</button>
+        <!-- ==================== VIEW 1: KOSPI 5Y ==================== -->
+        <div id="view-kospi-5y" class="view-pane active">
+          <header class="header">
+            <div>
+              <span class="badge">KOSPI 5Y</span>
+              <h1>코스피 최근 5년 통계 &amp; 이동평균선 차트</h1>
+              <div id="meta5y" class="sub">출처: 네이버 증권 (stock.naver.com/domestic/index/KOSPI/price)</div>
             </div>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>날짜</th><th>종가</th><th>전일대비</th><th>등락률</th><th>시가</th><th>고가</th><th>저가</th>
-                </tr>
-              </thead>
-              <tbody id="tableBody"></tbody>
-            </table>
-          </div>
-        </section>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <a href="./data/kospi_5y_stats.txt" target="_blank" class="btn">통계 TXT 원본 ↗</a>
+              <button id="csv5yBtn" class="btn">5년 CSV 다운로드</button>
+            </div>
+          </header>
+
+          <!-- 5Y KPI Cards -->
+          <section class="kpi-grid">
+            <div class="card">
+              <div class="kpi-label" id="k5LatestLabel">최신 종가</div>
+              <div id="k5Latest" class="kpi-val">-</div>
+              <div id="k5LatestSub" class="kpi-sub">-</div>
+            </div>
+            <div class="card">
+              <div class="kpi-label">5년 최고가 (장중)</div>
+              <div id="k5High" class="kpi-val">-</div>
+              <div id="k5HighDate" class="kpi-sub">-</div>
+            </div>
+            <div class="card">
+              <div class="kpi-label">5년 최저가 (장중)</div>
+              <div id="k5Low" class="kpi-val">-</div>
+              <div id="k5LowDate" class="kpi-sub">-</div>
+            </div>
+            <div class="card">
+              <div class="kpi-label">5년 누적 변동 / 주5·주20 상태</div>
+              <div id="k5Return" class="kpi-val">-</div>
+              <div id="k5WeeklyState" class="kpi-sub">-</div>
+            </div>
+          </section>
+
+          <!-- 5Y Chart (Moving Averages Only) -->
+          <section id="sec-5y-chart" class="card">
+            <div class="chart-head">
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <strong>코스피 5년 차트 (이동평균선)</strong>
+                <div style="display:inline-flex; gap:4px;">
+                  <button class="btn tf-btn active" data-tf="weekly">주봉 (주5·주20)</button>
+                  <button class="btn tf-btn" data-tf="daily">일봉 (5·20·60·120)</button>
+                </div>
+                <div style="display:inline-flex; gap:4px;">
+                  <button class="btn rng-btn active" data-years="5">5년</button>
+                  <button class="btn rng-btn" data-years="3">3년</button>
+                  <button class="btn rng-btn" data-years="1">1년</button>
+                </div>
+              </div>
+              <div id="maLegend" class="ma-legend"></div>
+            </div>
+            <div id="hover5y" style="font-size:12px; color:var(--muted); margin-bottom:8px; font-variant-numeric:tabular-nums;">
+              차트에 마우스를 올리면 해당 시점의 종가 및 이동평균선 수치가 표시됩니다.
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chart5y"></canvas>
+            </div>
+          </section>
+
+          <!-- 5Y Stats from Separate TXT File -->
+          <section id="sec-5y-stats" class="card">
+            <div class="chart-head" style="margin-bottom:10px;">
+              <div>
+                <strong>5년 통계 요약</strong>
+                <span style="font-size:12px; color:var(--muted); margin-left:6px;">(참조 파일: <code>./data/kospi_5y_stats.txt</code>)</span>
+              </div>
+              <a href="./data/kospi_5y_stats.txt" download="kospi_5y_stats.txt" class="btn">TXT 다운로드</a>
+            </div>
+            <pre id="statsTxtBox" class="txt-pre">통계 텍스트 파일을 불러오는 중...</pre>
+          </section>
+
+          <!-- 5Y Table -->
+          <section id="sec-5y-table" class="table-card">
+            <div class="table-head">
+              <div><strong>5년 일별 기록</strong> <span id="count5y" style="font-size:12px; color:var(--muted); margin-left:6px;">-</span></div>
+              <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                <input id="search5y" class="search-input" type="search" placeholder="연도/날짜 검색 (예: 2025-05)" />
+                <button id="sort5yBtn" class="btn">최신순 ↓</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>날짜</th><th>종가</th><th>전일대비</th><th>등락률</th><th>시가</th><th>고가</th><th>저가</th></tr>
+                </thead>
+                <tbody id="body5y"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <!-- ==================== VIEW 2: KOSPI 30D ==================== -->
+        <div id="view-kospi-30d" class="view-pane">
+          <header class="header">
+            <div>
+              <span class="badge">KOSPI 30D</span>
+              <h1>코스피 최근 30거래일 기록</h1>
+              <div id="meta30d" class="sub">출처: 네이버 증권</div>
+            </div>
+            <button id="csv30dBtn" class="btn">30일 CSV 다운로드</button>
+          </header>
+
+          <section id="sec-30d-kpi" class="kpi-grid">
+            <div class="card">
+              <div class="kpi-label" id="k30LatestLabel">최신 종가</div>
+              <div id="k30Latest" class="kpi-val">-</div>
+              <div id="k30LatestSub" class="kpi-sub">-</div>
+            </div>
+            <div class="card">
+              <div class="kpi-label">30거래일 최고 (장중)</div>
+              <div id="k30High" class="kpi-val">-</div>
+              <div id="k30HighDate" class="kpi-sub">-</div>
+            </div>
+            <div class="card">
+              <div class="kpi-label">30거래일 최저 (장중)</div>
+              <div id="k30Low" class="kpi-val">-</div>
+              <div id="k30LowDate" class="kpi-sub">-</div>
+            </div>
+            <div class="card">
+              <div class="kpi-label">30거래일 변동 / 평균 종가</div>
+              <div id="k30Period" class="kpi-val">-</div>
+              <div id="k30Avg" class="kpi-sub">-</div>
+            </div>
+          </section>
+
+          <section id="sec-30d-chart" class="card">
+            <div class="chart-head">
+              <strong>최근 30거래일 종가 추이</strong>
+              <span id="hover30d" style="font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums;">차트에 마우스를 올리면 일별 상세 수치가 표시됩니다.</span>
+            </div>
+            <div class="chart-wrap sm">
+              <canvas id="chart30d"></canvas>
+            </div>
+          </section>
+
+          <section id="sec-30d-table" class="table-card">
+            <div class="table-head">
+              <div><strong>최근 30거래일 상세 기록</strong> <span id="count30d" style="font-size:12px; color:var(--muted); margin-left:6px;">30건</span></div>
+              <div style="display:flex; gap:6px;">
+                <button data-filter="all" class="btn f30-btn active">전체</button>
+                <button data-filter="up" class="btn f30-btn">상승일</button>
+                <button data-filter="down" class="btn f30-btn">하락일</button>
+                <button id="sort30dBtn" class="btn">최신순 ↓</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>날짜</th><th>종가</th><th>전일대비</th><th>등락률</th><th>시가</th><th>고가</th><th>저가</th></tr>
+                </thead>
+                <tbody id="body30d"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <!-- ==================== VIEW 3: 명심보감 ==================== -->
+        <div id="view-wisdom" class="view-pane">
+          <header class="header">
+            <div>
+              <span class="badge">명심보감</span>
+              <h1>명심보감</h1>
+              <div class="sub">시장을 대하는 핵심 원칙과 참조 링크</div>
+            </div>
+          </header>
+
+          <ul class="wisdom-list">
+            <li id="w-magic" class="wisdom-item">
+              <div class="wisdom-title">1. 시간 복리 마법</div>
+              <div class="wisdom-body">주5, 주20 이평선에 만나는 시간에 무슨일이 생긴다. 위 코스피 참조.</div>
+              <a href="#sec-5y-chart" id="jumpToKospi5yWeekly" class="wisdom-link">📊 코스피 5년 주봉(주5·주20 이평선) 차트 바로 보기 →</a>
+            </li>
+            <li id="w-mulmit" class="wisdom-item">
+              <div class="wisdom-title">2. 물밑-홈</div>
+              <div class="wisdom-body">시장은 24시간 선물 현물 숏풋 롱콜 옵션으로 돌아간다.</div>
+              <a href="https://mulmit.com/" target="_blank" rel="noopener noreferrer" class="wisdom-link">https://mulmit.com/ ↗</a>
+            </li>
+            <li id="w-naejae" class="wisdom-item">
+              <div class="wisdom-title">3. 내재-커버드콜</div>
+              <div class="wisdom-body">작전은 다양하고, 하늘이 무너져도 솟아날 구멍은 있다. 단, 미래는 알 수 없다.</div>
+              <a href="https://www.naejae.com/covered-call" target="_blank" rel="noopener noreferrer" class="wisdom-link">https://www.naejae.com/covered-call ↗</a>
+            </li>
+          </ul>
+        </div>
+
       </div>
     </main>
   </div>
 
   <script>
-    const RAW_DATA = [
-  {
-    "date": "2026-11-20",
-    "close": 4869.96,
-    "open": 4928.51,
-    "high": 4971.31,
-    "low": 4831.69,
-    "change": -267.93,
-    "ratio": -5.21
-  },
-  {
-    "date": "2026-11-19",
-    "close": 5137.89,
-    "open": 5090.04,
-    "high": 5137.89,
-    "low": 4963.61,
-    "change": 70.45,
-    "ratio": 1.39
-  },
-  {
-    "date": "2026-11-18",
-    "close": 5067.44,
-    "open": 5098.82,
-    "high": 5133.14,
-    "low": 4943.17,
-    "change": 98.96,
-    "ratio": 1.99
-  },
-  {
-    "date": "2026-11-17",
-    "close": 4968.48,
-    "open": 5008.09,
-    "high": 5084.06,
-    "low": 4957.0,
-    "change": -132.02,
-    "ratio": -2.59
-  },
-  {
-    "date": "2026-11-16",
-    "close": 5100.5,
-    "open": 5305.4,
-    "high": 5327.99,
-    "low": 5069.83,
-    "change": -190.03,
-    "ratio": -3.59
-  },
-  {
-    "date": "2026-11-13",
-    "close": 5290.53,
-    "open": 5452.41,
-    "high": 5504.44,
-    "low": 5259.09,
-    "change": -52.2,
-    "ratio": -0.98
-  },
-  {
-    "date": "2026-11-12",
-    "close": 5342.73,
-    "open": 5385.94,
-    "high": 5458.84,
-    "low": 5293.05,
-    "change": -32.63,
-    "ratio": -0.61
-  },
-  {
-    "date": "2026-11-11",
-    "close": 5375.36,
-    "open": 5209.71,
-    "high": 5377.99,
-    "low": 5207.44,
-    "change": 136.23,
-    "ratio": 2.6
-  },
-  {
-    "date": "2026-11-10",
-    "close": 5239.13,
-    "open": 5247.22,
-    "high": 5300.92,
-    "low": 5174.55,
-    "change": 220.28,
-    "ratio": 4.39
-  },
-  {
-    "date": "2026-11-09",
-    "close": 5018.85,
-    "open": 5034.2,
-    "high": 5172.94,
-    "low": 4990.66,
-    "change": -40.84,
-    "ratio": -0.81
-  },
-  {
-    "date": "2026-11-06",
-    "close": 5059.69,
-    "open": 5263.26,
-    "high": 5269.1,
-    "low": 4911.28,
-    "change": -324.11,
-    "ratio": -6.02
-  },
-  {
-    "date": "2026-11-05",
-    "close": 5383.8,
-    "open": 5580.09,
-    "high": 5586.46,
-    "low": 5336.88,
-    "change": -300.0,
-    "ratio": -5.28
-  },
-  {
-    "date": "2026-11-04",
-    "close": 5683.8,
-    "open": 5786.13,
-    "high": 5828.13,
-    "low": 5421.72,
-    "change": 35.01,
-    "ratio": 0.62
-  },
-  {
-    "date": "2026-11-03",
-    "close": 5648.79,
-    "open": 5715.19,
-    "high": 5735.92,
-    "low": 5615.8,
-    "change": -210.29,
-    "ratio": -3.59
-  },
-  {
-    "date": "2026-11-02",
-    "close": 5859.08,
-    "open": 5637.77,
-    "high": 5910.83,
-    "low": 5616.5,
-    "change": 128.34,
-    "ratio": 2.24
-  },
-  {
-    "date": "2026-10-30",
-    "close": 5730.74,
-    "open": 5760.35,
-    "high": 5784.98,
-    "low": 5599.42,
-    "change": -206.92,
-    "ratio": -3.48
-  },
-  {
-    "date": "2026-10-29",
-    "close": 5937.66,
-    "open": 6017.22,
-    "high": 6100.11,
-    "low": 5817.92,
-    "change": -74.78,
-    "ratio": -1.24
-  },
-  {
-    "date": "2026-10-28",
-    "close": 6012.44,
-    "open": 5763.85,
-    "high": 6032.28,
-    "low": 5745.51,
-    "change": 374.1,
-    "ratio": 6.63
-  },
-  {
-    "date": "2026-10-27",
-    "close": 5638.34,
-    "open": 5658.65,
-    "high": 5737.61,
-    "low": 5612.92,
-    "change": 168.87,
-    "ratio": 3.09
-  },
-  {
-    "date": "2026-10-26",
-    "close": 5469.47,
-    "open": 5499.05,
-    "high": 5565.67,
-    "low": 5455.11,
-    "change": -80.83,
-    "ratio": -1.46
-  },
-  {
-    "date": "2026-10-23",
-    "close": 5550.3,
-    "open": 5403.17,
-    "high": 5550.3,
-    "low": 5305.98,
-    "change": 16.53,
-    "ratio": 0.3
-  },
-  {
-    "date": "2026-10-22",
-    "close": 5533.77,
-    "open": 5670.11,
-    "high": 5740.28,
-    "low": 5485.98,
-    "change": -201.89,
-    "ratio": -3.52
-  },
-  {
-    "date": "2026-10-21",
-    "close": 5735.66,
-    "open": 5666.34,
-    "high": 5816.43,
-    "low": 5630.14,
-    "change": 182.92,
-    "ratio": 3.29
-  },
-  {
-    "date": "2026-10-20",
-    "close": 5552.74,
-    "open": 5733.57,
-    "high": 5733.57,
-    "low": 5493.24,
-    "change": -215.27,
-    "ratio": -3.73
-  },
-  {
-    "date": "2026-10-19",
-    "close": 5768.01,
-    "open": 5488.41,
-    "high": 5768.01,
-    "low": 5488.41,
-    "change": 99.96,
-    "ratio": 1.76
-  },
-  {
-    "date": "2026-10-16",
-    "close": 5668.05,
-    "open": 5653.99,
-    "high": 5809.94,
-    "low": 5590.33,
-    "change": 113.83,
-    "ratio": 2.05
-  },
-  {
-    "date": "2026-10-15",
-    "close": 5554.22,
-    "open": 5673.01,
-    "high": 5751.45,
-    "low": 5450.81,
-    "change": -454.59,
-    "ratio": -7.57
-  },
-  {
-    "date": "2026-10-14",
-    "close": 6008.81,
-    "open": 6062.08,
-    "high": 6190.65,
-    "low": 5944.65,
-    "change": -26.54,
-    "ratio": -0.44
-  },
-  {
-    "date": "2026-10-13",
-    "close": 6035.35,
-    "open": 6186.08,
-    "high": 6198.46,
-    "low": 5911.11,
-    "change": -348.89,
-    "ratio": -5.46
-  },
-  {
-    "date": "2026-10-12",
-    "close": 6384.24,
-    "open": 6578.17,
-    "high": 6589.69,
-    "low": 6368.49,
-    "change": -241.69,
-    "ratio": -3.65
-  }
-];
-
-    // Mobile Sidebar Drawer
-    const sidebar = document.getElementById("sidebar");
-    const overlay = document.getElementById("sidebarOverlay");
-    const closeDrawer = () => {
-      sidebar.classList.remove("open");
-      overlay.classList.remove("show");
-    };
-    document.getElementById("menuToggleBtn").addEventListener("click", () => {
-      sidebar.classList.toggle("open");
-      overlay.classList.toggle("show");
-    });
-    overlay.addEventListener("click", closeDrawer);
-    sidebar.querySelectorAll("a").forEach((a) => a.addEventListener("click", closeDrawer));
-
-    const CHRONO = [...RAW_DATA].reverse();
-    let filterMode = "all", descOrder = true, hoverIdx = -1;
-    const fmt = (n) => n.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmt = (n) => (n === null || n === undefined || Number.isNaN(n)) ? "-" : Number(n).toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtSign = (n) => (n > 0 ? "+" : "") + fmt(n);
-
-    const latest = RAW_DATA[0], oldest = RAW_DATA[RAW_DATA.length - 1];
-    const highRow = RAW_DATA.reduce((a, b) => (b.high > a.high ? b : a));
-    const lowRow = RAW_DATA.reduce((a, b) => (b.low < a.low ? b : a));
-    const avgClose = RAW_DATA.reduce((s, r) => s + r.close, 0) / RAW_DATA.length;
-    const periodDiff = latest.close - oldest.close;
-    const periodPct = (periodDiff / oldest.close) * 100;
-
-    document.getElementById("kpiLatest").textContent = fmt(latest.close);
-    const kpiSub = document.getElementById("kpiLatestSub");
-    kpiSub.textContent = `${fmtSign(latest.change)} (${fmtSign(latest.ratio)}%)`;
-    kpiSub.className = `kpi-sub ${latest.change >= 0 ? "up" : "down"}`;
-    document.getElementById("kpiHigh").textContent = fmt(highRow.high);
-    document.getElementById("kpiHighDate").textContent = `${highRow.date} (종가 ${fmt(highRow.close)})`;
-    document.getElementById("kpiLow").textContent = fmt(lowRow.low);
-    document.getElementById("kpiLowDate").textContent = `${lowRow.date} (종가 ${fmt(lowRow.close)})`;
-    const kpiPeriod = document.getElementById("kpiPeriod");
-    kpiPeriod.textContent = `${fmtSign(periodPct)}%`;
-    kpiPeriod.className = `kpi-val ${periodDiff >= 0 ? "up" : "down"}`;
-    document.getElementById("kpiAvg").textContent = `평균 종가 ${fmt(avgClose)}`;
-
-    function renderTable() {
-      let rows = RAW_DATA.filter((r) => filterMode === "up" ? r.change > 0 : filterMode === "down" ? r.change < 0 : true);
-      if (!descOrder) rows = [...rows].reverse();
-      document.getElementById("rowCount").textContent = `${rows.length}건`;
-      document.getElementById("tableBody").innerHTML = rows.map((r) => {
-        const cls = r.change > 0 ? "up" : r.change < 0 ? "down" : "";
-        const arrow = r.change > 0 ? "▲" : r.change < 0 ? "▼" : "-";
-        return `<tr>
-          <td><strong>${r.date}</strong></td>
-          <td><strong>${fmt(r.close)}</strong></td>
-          <td class="${cls}">${arrow} ${fmt(Math.abs(r.change))}</td>
-          <td class="${cls}"><strong>${fmtSign(r.ratio)}%</strong></td>
-          <td style="color:var(--muted)">${fmt(r.open)}</td>
-          <td style="color:var(--muted)">${fmt(r.high)}</td>
-          <td style="color:var(--muted)">${fmt(r.low)}</td>
-        </tr>`;
-      }).join("");
-    }
-
-    const canvas = document.getElementById("kospiChart");
-    const ctx = canvas.getContext("2d");
     const cssVar = (k) => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
 
-    function drawChart() {
-      const rect = canvas.parentElement.getBoundingClientRect();
+    let ALL_ROWS = []; // newest first
+    let META = {};
+    let tf5y = "weekly"; // 'weekly' | 'daily'
+    let years5y = 5;
+    let maEnabled = { 5: true, 20: true, 60: true, 120: true };
+    let hover5yIdx = -1;
+    let hover30dIdx = -1;
+    let desc5y = true;
+    let search5yQ = "";
+    let filter30d = "all";
+    let desc30d = true;
+
+    // ===== Sidebar Navigation & Accordion =====
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("sidebarOverlay");
+    const closeDrawer = () => { sidebar.classList.remove("open"); overlay.classList.remove("show"); };
+    document.getElementById("menuToggleBtn").addEventListener("click", () => {
+      sidebar.classList.toggle("open"); overlay.classList.toggle("show");
+    });
+    overlay.addEventListener("click", closeDrawer);
+
+    // Collapsible caret toggle
+    document.querySelectorAll(".nav-group").forEach((grp) => {
+      const caret = grp.querySelector(".nav-caret-btn");
+      if (caret) {
+        caret.addEventListener("click", (e) => {
+          e.stopPropagation();
+          grp.classList.toggle("collapsed");
+        });
+      }
+      const toggleOnly = grp.querySelector('[data-toggle-only="true"]');
+      if (toggleOnly) {
+        toggleOnly.addEventListener("click", () => grp.classList.toggle("collapsed"));
+      }
+    });
+
+    function switchView(viewId, scrollTargetId = null) {
+      document.querySelectorAll(".view-pane").forEach((p) => p.classList.toggle("active", p.id === viewId));
+      document.querySelectorAll(".nav-main-btn[data-view]").forEach((b) => {
+        const active = b.dataset.view === viewId;
+        b.classList.toggle("active", active);
+        if (active) b.closest(".nav-group")?.classList.remove("collapsed");
+      });
+      closeDrawer();
+      requestAnimationFrame(() => {
+        if (viewId === "view-kospi-5y") draw5yChart();
+        if (viewId === "view-kospi-30d") draw30dChart();
+        if (scrollTargetId) {
+          document.getElementById(scrollTargetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      });
+    }
+
+    document.querySelectorAll(".nav-main-btn[data-view]").forEach((btn) => {
+      btn.addEventListener("click", () => switchView(btn.dataset.view));
+    });
+    document.querySelectorAll(".nav-sub-link[data-view]").forEach((a) => {
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        switchView(a.dataset.view, a.dataset.target);
+      });
+    });
+
+    document.getElementById("jumpToKospi5yWeekly").addEventListener("click", (e) => {
+      e.preventDefault();
+      tf5y = "weekly";
+      years5y = 5;
+      updateTfButtons();
+      switchView("view-kospi-5y", "sec-5y-chart");
+    });
+
+    // Theme toggle
+    function toggleTheme() {
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      document.documentElement.setAttribute("data-theme", isDark ? "light" : "dark");
+      const label = isDark ? "다크" : "라이트";
+      document.getElementById("themeBtn").textContent = label;
+      document.getElementById("themeBtnMobile").textContent = label;
+      draw5yChart();
+      draw30dChart();
+    }
+    document.getElementById("themeBtn").addEventListener("click", toggleTheme);
+    document.getElementById("themeBtnMobile").addEventListener("click", toggleTheme);
+
+    // ===== Data Helpers (Weekly Bars & SMA) =====
+    function isoWeekKey(dateStr) {
+      const d = new Date(dateStr + "T00:00:00Z");
+      const day = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - day);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+      return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+    }
+
+    function buildWeekly(ascRows) {
+      const map = new Map();
+      for (const r of ascRows) {
+        const k = isoWeekKey(r.date);
+        if (!map.has(k)) map.set(k, []);
+        map.get(k).push(r);
+      }
+      const out = [];
+      for (const grp of map.values()) {
+        out.push({
+          date: grp[grp.length - 1].date,
+          open: grp[0].open,
+          high: Math.max(...grp.map((x) => x.high)),
+          low: Math.min(...grp.map((x) => x.low)),
+          close: grp[grp.length - 1].close,
+        });
+      }
+      return out;
+    }
+
+    function calcSMA(arr, period) {
+      const res = new Array(arr.length).fill(null);
+      let sum = 0;
+      for (let i = 0; i < arr.length; i++) {
+        sum += arr[i];
+        if (i >= period) sum -= arr[i - period];
+        if (i >= period - 1) res[i] = sum / period;
+      }
+      return res;
+    }
+
+    // ===== 5Y Chart (Moving Averages Only) =====
+    function get5ySeries() {
+      const asc = [...ALL_ROWS].reverse();
+      const base = tf5y === "weekly" ? buildWeekly(asc) : asc;
+      const periods = tf5y === "weekly" ? [5, 20] : [5, 20, 60, 120];
+      const closes = base.map((b) => b.close);
+      const mas = {};
+      for (const p of periods) mas[p] = calcSMA(closes, p);
+
+      // Slice by selected year range AFTER computing MAs so MAs stay accurate!
+      const latestDate = base.length ? new Date(base[base.length - 1].date + "T00:00:00Z") : new Date();
+      const cutoff = new Date(latestDate);
+      cutoff.setUTCFullYear(cutoff.getUTCFullYear() - years5y);
+      const cutIso = cutoff.toISOString().slice(0, 10);
+
+      let startIdx = base.findIndex((b) => b.date >= cutIso);
+      if (startIdx < 0) startIdx = 0;
+      const sliced = base.slice(startIdx);
+      const slicedMas = {};
+      for (const p of periods) slicedMas[p] = mas[p].slice(startIdx);
+      return { bars: sliced, mas: slicedMas, periods };
+    }
+
+    const MA_COLORS = { 5: "--ma5", 20: "--ma20", 60: "--ma60", 120: "--ma120" };
+
+    function renderMaLegend() {
+      const periods = tf5y === "weekly" ? [5, 20] : [5, 20, 60, 120];
+      const prefix = tf5y === "weekly" ? "주" : "MA";
+      const el = document.getElementById("maLegend");
+      el.innerHTML = periods.map((p) => `
+        <label class="ma-toggle">
+          <input type="checkbox" data-ma="${p}" ${maEnabled[p] ? "checked" : ""} />
+          <span class="swatch" style="background:var(${MA_COLORS[p]})"></span>
+          <span>${prefix}${p}</span>
+        </label>
+      `).join("");
+      el.querySelectorAll("input[data-ma]").forEach((chk) => {
+        chk.addEventListener("change", () => {
+          maEnabled[Number(chk.dataset.ma)] = chk.checked;
+          draw5yChart();
+        });
+      });
+    }
+
+    function updateTfButtons() {
+      document.querySelectorAll(".tf-btn").forEach((b) => b.classList.toggle("active", b.dataset.tf === tf5y));
+      document.querySelectorAll(".rng-btn").forEach((b) => b.classList.toggle("active", Number(b.dataset.years) === years5y));
+      renderMaLegend();
+    }
+
+    document.querySelectorAll(".tf-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        tf5y = btn.dataset.tf;
+        hover5yIdx = -1;
+        updateTfButtons();
+        draw5yChart();
+      });
+    });
+    document.querySelectorAll(".rng-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        years5y = Number(btn.dataset.years);
+        hover5yIdx = -1;
+        updateTfButtons();
+        draw5yChart();
+      });
+    });
+
+    const c5 = document.getElementById("chart5y");
+    const ctx5 = c5.getContext("2d");
+
+    function draw5yChart() {
+      if (!ALL_ROWS.length) return;
+      const rect = c5.parentElement.getBoundingClientRect();
+      if (rect.width < 10) return;
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.max(300, Math.floor(rect.width * dpr));
-      canvas.height = Math.max(180, Math.floor(rect.height * dpr));
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      c5.width = Math.floor(rect.width * dpr);
+      c5.height = Math.floor(rect.height * dpr);
+      ctx5.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const { bars, mas, periods } = get5ySeries();
+      if (bars.length < 2) return;
+
+      const W = rect.width, H = rect.height;
+      const pad = { top: 18, right: 18, bottom: 28, left: 60 };
+      const plotW = W - pad.left - pad.right, plotH = H - pad.top - pad.bottom;
+
+      const allVals = bars.map((b) => b.close);
+      for (const p of periods) {
+        if (!maEnabled[p]) continue;
+        for (const v of mas[p]) if (v !== null) allVals.push(v);
+      }
+      const minV = Math.min(...allVals), maxV = Math.max(...allVals);
+      const m = (maxV - minV) * 0.08 || 50;
+      const yMin = minV - m, yMax = maxV + m;
+      const xFor = (i) => pad.left + (i / (bars.length - 1)) * plotW;
+      const yFor = (v) => pad.top + ((yMax - v) / (yMax - yMin)) * plotH;
+
+      ctx5.clearRect(0, 0, W, H);
+      ctx5.font = "11px system-ui, sans-serif";
+      ctx5.textAlign = "right"; ctx5.textBaseline = "middle";
+      for (let i = 0; i <= 5; i++) {
+        const val = yMin + ((yMax - yMin) * i) / 5, y = yFor(val);
+        ctx5.strokeStyle = cssVar("--border"); ctx5.lineWidth = 1;
+        ctx5.beginPath(); ctx5.moveTo(pad.left, y); ctx5.lineTo(W - pad.right, y); ctx5.stroke();
+        ctx5.fillStyle = cssVar("--muted");
+        ctx5.fillText(Math.round(val).toLocaleString("ko-KR"), pad.left - 8, y);
+      }
+
+      // X labels
+      ctx5.textAlign = "center"; ctx5.textBaseline = "top";
+      const xTicks = 6;
+      for (let i = 0; i <= xTicks; i++) {
+        const idx = Math.min(bars.length - 1, Math.round((i / xTicks) * (bars.length - 1)));
+        ctx5.fillStyle = cssVar("--muted");
+        ctx5.fillText(bars[idx].date.slice(0, 7), xFor(idx), H - pad.bottom + 8);
+      }
+
+      // Close price line
+      ctx5.beginPath();
+      bars.forEach((b, i) => i === 0 ? ctx5.moveTo(xFor(i), yFor(b.close)) : ctx5.lineTo(xFor(i), yFor(b.close)));
+      ctx5.strokeStyle = cssVar("--line");
+      ctx5.lineWidth = 1.6;
+      ctx5.lineJoin = "round";
+      ctx5.stroke();
+
+      // Moving Averages
+      for (const p of periods) {
+        if (!maEnabled[p]) continue;
+        const arr = mas[p];
+        ctx5.beginPath();
+        let started = false;
+        for (let i = 0; i < arr.length; i++) {
+          if (arr[i] === null) continue;
+          const x = xFor(i), y = yFor(arr[i]);
+          if (!started) { ctx5.moveTo(x, y); started = true; }
+          else ctx5.lineTo(x, y);
+        }
+        ctx5.strokeStyle = cssVar(MA_COLORS[p]);
+        ctx5.lineWidth = tf5y === "weekly" ? 2.1 : 1.7;
+        ctx5.stroke();
+      }
+
+      // Weekly MA5 x MA20 crossover markers
+      if (tf5y === "weekly" && maEnabled[5] && maEnabled[20]) {
+        const m5 = mas[5], m20 = mas[20];
+        for (let i = 1; i < bars.length; i++) {
+          if (m5[i - 1] === null || m20[i - 1] === null || m5[i] === null || m20[i] === null) continue;
+          const prevD = m5[i - 1] - m20[i - 1];
+          const currD = m5[i] - m20[i];
+          if ((prevD <= 0 && currD > 0) || (prevD >= 0 && currD < 0)) {
+            const cx = xFor(i), cy = yFor(m5[i]);
+            ctx5.beginPath();
+            ctx5.arc(cx, cy, 4.5, 0, Math.PI * 2);
+            ctx5.fillStyle = currD > 0 ? cssVar("--up") : cssVar("--down");
+            ctx5.fill();
+            ctx5.lineWidth = 1.5;
+            ctx5.strokeStyle = cssVar("--card");
+            ctx5.stroke();
+          }
+        }
+      }
+
+      // Hover crosshair
+      if (hover5yIdx >= 0 && hover5yIdx < bars.length) {
+        const b = bars[hover5yIdx], hx = xFor(hover5yIdx), hy = yFor(b.close);
+        ctx5.save(); ctx5.setLineDash([4, 4]); ctx5.strokeStyle = cssVar("--muted"); ctx5.lineWidth = 1;
+        ctx5.beginPath(); ctx5.moveTo(hx, pad.top); ctx5.lineTo(hx, pad.top + plotH); ctx5.stroke(); ctx5.restore();
+        ctx5.beginPath(); ctx5.arc(hx, hy, 4, 0, Math.PI * 2);
+        ctx5.fillStyle = cssVar("--line"); ctx5.fill();
+      }
+    }
+
+    c5.addEventListener("mousemove", (e) => {
+      if (!ALL_ROWS.length) return;
+      const { bars, mas, periods } = get5ySeries();
+      if (bars.length < 2) return;
+      const rect = c5.getBoundingClientRect();
+      const plotW = rect.width - 78;
+      const relX = Math.max(0, Math.min(plotW, e.clientX - rect.left - 60));
+      hover5yIdx = Math.round((relX / plotW) * (bars.length - 1));
+      const b = bars[hover5yIdx];
+      const prefix = tf5y === "weekly" ? "주" : "MA";
+      const maText = periods.filter((p) => maEnabled[p]).map((p) =>
+        `<span style="color:var(${MA_COLORS[p]}); font-weight:600;">${prefix}${p}: ${fmt(mas[p][hover5yIdx])}</span>`
+      ).join(" · ");
+      document.getElementById("hover5y").innerHTML =
+        `<strong>${b.date}</strong> · 종가 <strong>${fmt(b.close)}</strong> (고가 ${fmt(b.high)} / 저가 ${fmt(b.low)}) · ${maText}`;
+      draw5yChart();
+    });
+    c5.addEventListener("mouseleave", () => {
+      hover5yIdx = -1;
+      document.getElementById("hover5y").textContent = "차트에 마우스를 올리면 해당 시점의 종가 및 이동평균선 수치가 표시됩니다.";
+      draw5yChart();
+    });
+
+    // ===== 30D Chart =====
+    const c30 = document.getElementById("chart30d");
+    const ctx30 = c30.getContext("2d");
+
+    function draw30dChart() {
+      const rows30 = ALL_ROWS.slice(0, 30);
+      if (rows30.length < 2) return;
+      const chrono = [...rows30].reverse();
+      const rect = c30.parentElement.getBoundingClientRect();
+      if (rect.width < 10) return;
+      const dpr = window.devicePixelRatio || 1;
+      c30.width = Math.floor(rect.width * dpr);
+      c30.height = Math.floor(rect.height * dpr);
+      ctx30.setTransform(dpr, 0, 0, dpr, 0, 0);
+
       const W = rect.width, H = rect.height;
       const pad = { top: 16, right: 16, bottom: 28, left: 58 };
       const plotW = W - pad.left - pad.right, plotH = H - pad.top - pad.bottom;
-      const closes = CHRONO.map((d) => d.close);
+      const closes = chrono.map((d) => d.close);
       const minV = Math.min(...closes), maxV = Math.max(...closes);
       const m = (maxV - minV) * 0.12 || 50;
       const yMin = minV - m, yMax = maxV + m;
-      const xFor = (i) => pad.left + (i / (CHRONO.length - 1)) * plotW;
+      const xFor = (i) => pad.left + (i / (chrono.length - 1)) * plotW;
       const yFor = (v) => pad.top + ((yMax - v) / (yMax - yMin)) * plotH;
 
-      ctx.clearRect(0, 0, W, H);
-      ctx.font = "11px system-ui, sans-serif";
-      ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      ctx30.clearRect(0, 0, W, H);
+      ctx30.font = "11px system-ui, sans-serif";
+      ctx30.textAlign = "right"; ctx30.textBaseline = "middle";
       for (let i = 0; i <= 4; i++) {
         const val = yMin + ((yMax - yMin) * i) / 4, y = yFor(val);
-        ctx.strokeStyle = cssVar("--border"); ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
-        ctx.fillStyle = cssVar("--muted");
-        ctx.fillText(Math.round(val).toLocaleString("ko-KR"), pad.left - 8, y);
+        ctx30.strokeStyle = cssVar("--border"); ctx30.lineWidth = 1;
+        ctx30.beginPath(); ctx30.moveTo(pad.left, y); ctx30.lineTo(W - pad.right, y); ctx30.stroke();
+        ctx30.fillStyle = cssVar("--muted");
+        ctx30.fillText(Math.round(val).toLocaleString("ko-KR"), pad.left - 8, y);
       }
-      ctx.textAlign = "center"; ctx.textBaseline = "top";
-      const step = Math.max(1, Math.floor(CHRONO.length / 6));
-      for (let i = 0; i < CHRONO.length; i += step) {
-        ctx.fillStyle = cssVar("--muted");
-        ctx.fillText(CHRONO[i].date.slice(5), xFor(i), H - pad.bottom + 8);
+      ctx30.textAlign = "center"; ctx30.textBaseline = "top";
+      const step = Math.max(1, Math.floor(chrono.length / 6));
+      for (let i = 0; i < chrono.length; i += step) {
+        ctx30.fillStyle = cssVar("--muted");
+        ctx30.fillText(chrono[i].date.slice(5), xFor(i), H - pad.bottom + 8);
       }
-      ctx.fillText(CHRONO[CHRONO.length - 1].date.slice(5), xFor(CHRONO.length - 1), H - pad.bottom + 8);
+      ctx30.fillText(chrono[chrono.length - 1].date.slice(5), xFor(chrono.length - 1), H - pad.bottom + 8);
 
-      const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + plotH);
+      const grad = ctx30.createLinearGradient(0, pad.top, 0, pad.top + plotH);
       grad.addColorStop(0, "rgba(37, 99, 235, 0.22)");
       grad.addColorStop(1, "rgba(37, 99, 235, 0)");
-      ctx.beginPath();
-      CHRONO.forEach((d, i) => i === 0 ? ctx.moveTo(xFor(i), yFor(d.close)) : ctx.lineTo(xFor(i), yFor(d.close)));
-      ctx.lineTo(xFor(CHRONO.length - 1), pad.top + plotH);
-      ctx.lineTo(xFor(0), pad.top + plotH);
-      ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+      ctx30.beginPath();
+      chrono.forEach((d, i) => i === 0 ? ctx30.moveTo(xFor(i), yFor(d.close)) : ctx30.lineTo(xFor(i), yFor(d.close)));
+      ctx30.lineTo(xFor(chrono.length - 1), pad.top + plotH);
+      ctx30.lineTo(xFor(0), pad.top + plotH);
+      ctx30.closePath(); ctx30.fillStyle = grad; ctx30.fill();
 
-      ctx.beginPath();
-      CHRONO.forEach((d, i) => i === 0 ? ctx.moveTo(xFor(i), yFor(d.close)) : ctx.lineTo(xFor(i), yFor(d.close)));
-      ctx.strokeStyle = cssVar("--line"); ctx.lineWidth = 2.2; ctx.lineJoin = "round"; ctx.stroke();
+      ctx30.beginPath();
+      chrono.forEach((d, i) => i === 0 ? ctx30.moveTo(xFor(i), yFor(d.close)) : ctx30.lineTo(xFor(i), yFor(d.close)));
+      ctx30.strokeStyle = cssVar("--ma20"); ctx30.lineWidth = 2.2; ctx30.lineJoin = "round"; ctx30.stroke();
 
-      if (hoverIdx >= 0 && hoverIdx < CHRONO.length) {
-        const d = CHRONO[hoverIdx], hx = xFor(hoverIdx), hy = yFor(d.close);
-        ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = cssVar("--muted"); ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(hx, pad.top); ctx.lineTo(hx, pad.top + plotH); ctx.stroke(); ctx.restore();
-        ctx.beginPath(); ctx.arc(hx, hy, 4.5, 0, Math.PI * 2);
-        ctx.fillStyle = d.change >= 0 ? cssVar("--up") : cssVar("--down"); ctx.fill();
-        ctx.lineWidth = 2; ctx.strokeStyle = cssVar("--fg"); ctx.stroke();
+      if (hover30dIdx >= 0 && hover30dIdx < chrono.length) {
+        const d = chrono[hover30dIdx], hx = xFor(hover30dIdx), hy = yFor(d.close);
+        ctx30.save(); ctx30.setLineDash([4, 4]); ctx30.strokeStyle = cssVar("--muted"); ctx30.lineWidth = 1;
+        ctx30.beginPath(); ctx30.moveTo(hx, pad.top); ctx30.lineTo(hx, pad.top + plotH); ctx30.stroke(); ctx30.restore();
+        ctx30.beginPath(); ctx30.arc(hx, hy, 4.5, 0, Math.PI * 2);
+        ctx30.fillStyle = d.change >= 0 ? cssVar("--up") : cssVar("--down"); ctx30.fill();
+        ctx30.lineWidth = 2; ctx30.strokeStyle = cssVar("--fg"); ctx30.stroke();
       }
     }
 
-    canvas.addEventListener("mousemove", (e) => {
-      const rect = canvas.getBoundingClientRect();
+    c30.addEventListener("mousemove", (e) => {
+      const chrono = [...ALL_ROWS.slice(0, 30)].reverse();
+      if (chrono.length < 2) return;
+      const rect = c30.getBoundingClientRect();
       const plotW = rect.width - 74;
       const relX = Math.max(0, Math.min(plotW, e.clientX - rect.left - 58));
-      hoverIdx = Math.round((relX / plotW) * (CHRONO.length - 1));
-      const d = CHRONO[hoverIdx], cls = d.change >= 0 ? "up" : "down";
-      document.getElementById("hoverReadout").innerHTML =
+      hover30dIdx = Math.round((relX / plotW) * (chrono.length - 1));
+      const d = chrono[hover30dIdx], cls = d.change >= 0 ? "up" : "down";
+      document.getElementById("hover30d").innerHTML =
         `<strong>${d.date}</strong> · 종가 <strong>${fmt(d.close)}</strong> <span class="${cls}">(${fmtSign(d.change)} / ${fmtSign(d.ratio)}%)</span> · 시가 ${fmt(d.open)} / 고가 ${fmt(d.high)} / 저가 ${fmt(d.low)}`;
-      drawChart();
+      draw30dChart();
     });
-    canvas.addEventListener("mouseleave", () => {
-      hoverIdx = -1;
-      document.getElementById("hoverReadout").textContent = "차트에 마우스를 올리면 일별 상세 수치가 표시됩니다.";
-      drawChart();
+    c30.addEventListener("mouseleave", () => {
+      hover30dIdx = -1;
+      document.getElementById("hover30d").textContent = "차트에 마우스를 올리면 일별 상세 수치가 표시됩니다.";
+      draw30dChart();
     });
-    document.querySelectorAll(".filter-btn").forEach((btn) => {
+
+    // ===== Tables & CSV =====
+    function rowHtml(r) {
+      const cls = r.change > 0 ? "up" : r.change < 0 ? "down" : "";
+      const arrow = r.change > 0 ? "▲" : r.change < 0 ? "▼" : "-";
+      return `<tr>
+        <td><strong>${r.date}</strong></td>
+        <td><strong>${fmt(r.close)}</strong></td>
+        <td class="${cls}">${arrow} ${fmt(Math.abs(r.change))}</td>
+        <td class="${cls}"><strong>${fmtSign(r.ratio)}%</strong></td>
+        <td style="color:var(--muted)">${fmt(r.open)}</td>
+        <td style="color:var(--muted)">${fmt(r.high)}</td>
+        <td style="color:var(--muted)">${fmt(r.low)}</td>
+      </tr>`;
+    }
+
+    function render5yTable() {
+      let rows = ALL_ROWS.filter((r) => !search5yQ || r.date.includes(search5yQ));
+      if (!desc5y) rows = [...rows].reverse();
+      document.getElementById("count5y").textContent = `${rows.length.toLocaleString("ko-KR")}거래일`;
+      document.getElementById("body5y").innerHTML = rows.slice(0, 400).map(rowHtml).join("") +
+        (rows.length > 400 ? `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:12px;">상위 400건 표시 중 (날짜 검색 또는 CSV 다운로드로 전체 ${rows.length.toLocaleString("ko-KR")}건 확인)</td></tr>` : "");
+    }
+
+    function render30dTable() {
+      let rows = ALL_ROWS.slice(0, 30).filter((r) => filter30d === "up" ? r.change > 0 : filter30d === "down" ? r.change < 0 : true);
+      if (!desc30d) rows = [...rows].reverse();
+      document.getElementById("count30d").textContent = `${rows.length}건`;
+      document.getElementById("body30d").innerHTML = rows.map(rowHtml).join("");
+    }
+
+    document.getElementById("search5y").addEventListener("input", (e) => {
+      search5yQ = e.target.value.trim();
+      render5yTable();
+    });
+    document.getElementById("sort5yBtn").addEventListener("click", (e) => {
+      desc5y = !desc5y;
+      e.target.textContent = desc5y ? "최신순 ↓" : "과거순 ↑";
+      render5yTable();
+    });
+    document.querySelectorAll(".f30-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        filterMode = btn.dataset.filter;
-        document.querySelectorAll(".filter-btn").forEach((b) => b.classList.toggle("active", b.dataset.filter === filterMode));
-        renderTable();
+        filter30d = btn.dataset.filter;
+        document.querySelectorAll(".f30-btn").forEach((b) => b.classList.toggle("active", b.dataset.filter === filter30d));
+        render30dTable();
       });
     });
-    document.getElementById("sortBtn").addEventListener("click", (e) => {
-      descOrder = !descOrder;
-      e.target.textContent = descOrder ? "최신순 ↓" : "과거순 ↑";
-      renderTable();
+    document.getElementById("sort30dBtn").addEventListener("click", (e) => {
+      desc30d = !desc30d;
+      e.target.textContent = desc30d ? "최신순 ↓" : "과거순 ↑";
+      render30dTable();
     });
-    document.getElementById("themeBtn").addEventListener("click", (e) => {
-      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-      document.documentElement.setAttribute("data-theme", isDark ? "light" : "dark");
-      e.target.textContent = isDark ? "다크 모드" : "라이트 모드";
-      drawChart();
-    });
-    document.getElementById("csvBtn").addEventListener("click", () => {
+
+    function downloadCsv(rows, filename) {
       const lines = ["날짜,종가,전일대비,등락률(%),시가,고가,저가"].concat(
-        RAW_DATA.map((r) => [r.date, r.close, r.change, r.ratio, r.open, r.high, r.low].join(","))
+        rows.map((r) => [r.date, r.close, r.change, r.ratio, r.open, r.high, r.low].join(","))
       );
       const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
-      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "kospi_30d_20261120.csv"; a.click();
-    });
-    window.addEventListener("resize", drawChart);
-    renderTable(); drawChart();
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+    }
+    document.getElementById("csv5yBtn").addEventListener("click", () => downloadCsv(ALL_ROWS, `kospi_5y_${(META.endDate || "").replace(/-/g, "")}.csv`));
+    document.getElementById("csv30dBtn").addEventListener("click", () => downloadCsv(ALL_ROWS.slice(0, 30), `kospi_30d_${(META.endDate || "").replace(/-/g, "")}.csv`));
+
+    // ===== Hydrate KPIs & Load External JSON + TXT =====
+    function hydrateAll() {
+      const latest = ALL_ROWS[0], oldest = ALL_ROWS[ALL_ROWS.length - 1];
+      const hi5 = ALL_ROWS.reduce((a, b) => b.high > a.high ? b : a);
+      const lo5 = ALL_ROWS.reduce((a, b) => b.low < a.low ? b : a);
+      const ret5 = ((latest.close - oldest.close) / oldest.close) * 100;
+
+      const weekly = buildWeekly([...ALL_ROWS].reverse());
+      const wCloses = weekly.map((w) => w.close);
+      const w5 = calcSMA(wCloses, 5).at(-1), w20 = calcSMA(wCloses, 20).at(-1);
+
+      document.getElementById("meta5y").textContent = `출처: 네이버 증권 (${oldest.date} ~ ${latest.date} · 총 ${ALL_ROWS.length.toLocaleString("ko-KR")}거래일 · 갱신 ${META.updatedAt || "-"})`;
+      document.getElementById("footerUpdated").textContent = `갱신: ${META.updatedAt || "-"}`;
+
+      document.getElementById("k5LatestLabel").textContent = `최신 종가 (${latest.date})`;
+      document.getElementById("k5Latest").textContent = fmt(latest.close);
+      const k5s = document.getElementById("k5LatestSub");
+      k5s.textContent = `${fmtSign(latest.change)} (${fmtSign(latest.ratio)}%)`;
+      k5s.className = `kpi-sub ${latest.change >= 0 ? "up" : "down"}`;
+      document.getElementById("k5High").textContent = fmt(hi5.high);
+      document.getElementById("k5HighDate").textContent = `${hi5.date} (종가 ${fmt(hi5.close)})`;
+      document.getElementById("k5Low").textContent = fmt(lo5.low);
+      document.getElementById("k5LowDate").textContent = `${lo5.date} (종가 ${fmt(lo5.close)})`;
+      const k5r = document.getElementById("k5Return");
+      k5r.textContent = `${fmtSign(ret5)}%`;
+      k5r.className = `kpi-val ${ret5 >= 0 ? "up" : "down"}`;
+      document.getElementById("k5WeeklyState").textContent = `주5 ${fmt(w5)} / 주20 ${fmt(w20)} (${w5 >= w20 ? "정배열" : "역배열"})`;
+
+      // 30D KPIs
+      const r30 = ALL_ROWS.slice(0, 30);
+      const o30 = r30[r30.length - 1];
+      const hi30 = r30.reduce((a, b) => b.high > a.high ? b : a);
+      const lo30 = r30.reduce((a, b) => b.low < a.low ? b : a);
+      const avg30 = r30.reduce((s, r) => s + r.close, 0) / r30.length;
+      const ret30 = ((latest.close - o30.close) / o30.close) * 100;
+
+      document.getElementById("meta30d").textContent = `출처: 네이버 증권 (${o30.date} ~ ${latest.date} · 총 ${r30.length}거래일)`;
+      document.getElementById("k30LatestLabel").textContent = `최신 종가 (${latest.date})`;
+      document.getElementById("k30Latest").textContent = fmt(latest.close);
+      const k30s = document.getElementById("k30LatestSub");
+      k30s.textContent = `${fmtSign(latest.change)} (${fmtSign(latest.ratio)}%)`;
+      k30s.className = `kpi-sub ${latest.change >= 0 ? "up" : "down"}`;
+      document.getElementById("k30High").textContent = fmt(hi30.high);
+      document.getElementById("k30HighDate").textContent = `${hi30.date} (종가 ${fmt(hi30.close)})`;
+      document.getElementById("k30Low").textContent = fmt(lo30.low);
+      document.getElementById("k30LowDate").textContent = `${lo30.date} (종가 ${fmt(lo30.close)})`;
+      const k30p = document.getElementById("k30Period");
+      k30p.textContent = `${fmtSign(ret30)}%`;
+      k30p.className = `kpi-val ${ret30 >= 0 ? "up" : "down"}`;
+      document.getElementById("k30Avg").textContent = `평균 종가 ${fmt(avg30)}`;
+
+      updateTfButtons();
+      render5yTable();
+      render30dTable();
+      draw5yChart();
+      draw30dChart();
+    }
+
+    async function boot() {
+      try {
+        const [jsonRes, txtRes] = await Promise.all([
+          fetch("./data/kospi_5y.json", { cache: "no-store" }),
+          fetch("./data/kospi_5y_stats.txt", { cache: "no-store" }),
+        ]);
+        if (!jsonRes.ok) throw new Error(`kospi_5y.json HTTP ${jsonRes.status}`);
+        const payload = await jsonRes.json();
+        META = payload.meta || {};
+        ALL_ROWS = payload.rows || [];
+        hydrateAll();
+
+        if (txtRes.ok) {
+          document.getElementById("statsTxtBox").textContent = await txtRes.text();
+        } else {
+          document.getElementById("statsTxtBox").textContent = "통계 TXT 파일을 불러오지 못했습니다.";
+        }
+      } catch (err) {
+        document.getElementById("statsTxtBox").textContent = `데이터 로드 실패: ${err.message}`;
+      }
+    }
+
+    window.addEventListener("resize", () => { draw5yChart(); draw30dChart(); });
+    boot();
   </script>
 </body>
 </html>
