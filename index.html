@@ -251,19 +251,19 @@
       </div>
 
       <nav class="nav-section">
-        <!-- 1. 코스피 5년 (최상위 메뉴) -->
+        <!-- 1. 코스피 전체 (최상위 메뉴) -->
         <div class="nav-group" data-group="kospi5y">
           <div class="nav-group-header">
             <button class="nav-main-btn active" data-view="view-kospi-5y">
-              <span>📊 코스피 5년</span>
-              <span class="nav-pill">5Y</span>
+              <span>📊 코스피 전체 (1990~)</span>
+              <span class="nav-pill">ALL</span>
             </button>
             <button class="nav-caret-btn" aria-label="하위 메뉴 펼치기/접기" title="펼치기/접기">▾</button>
           </div>
           <ul class="nav-sub-list">
-            <li><a class="nav-sub-link" data-view="view-kospi-5y" data-target="sec-5y-chart">5년 차트 (주 이평선)</a></li>
-            <li><a class="nav-sub-link" data-view="view-kospi-5y" data-target="sec-5y-table">5년 일별 기록</a></li>
-            <li><a class="nav-sub-link" data-view="view-kospi-5y" data-target="sec-5y-stats">5년 통계 (TXT)</a></li>
+            <li><a class="nav-sub-link" data-view="view-kospi-5y" data-target="sec-5y-chart">전체 차트 (주 이평선)</a></li>
+            <li><a class="nav-sub-link" data-view="view-kospi-5y" data-target="sec-5y-table">전체 일별 기록</a></li>
+            <li><a class="nav-sub-link" data-view="view-kospi-5y" data-target="sec-5y-stats">전체 통계 (TXT)</a></li>
           </ul>
         </div>
 
@@ -327,21 +327,21 @@
     <main class="main-wrap">
       <div class="container">
 
-        <!-- ==================== VIEW 1: KOSPI 5Y ==================== -->
+        <!-- ==================== VIEW 1: KOSPI ALL (1990~) ==================== -->
         <div id="view-kospi-5y" class="view-pane active">
           <header class="header">
             <div>
-              <span class="badge">KOSPI 5Y</span>
-              <h1>코스피 최근 5년 통계 &amp; 이동평균선 차트</h1>
+              <span class="badge">KOSPI ALL</span>
+              <h1>코스피 전체 기간 (1990~현재) 통계 &amp; 이동평균선 차트</h1>
               <div id="meta5y" class="sub">출처: 네이버 증권 (stock.naver.com/domestic/index/KOSPI/price)</div>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
               <a href="./data/kospi_5y_stats.txt" target="_blank" class="btn">통계 TXT 원본 ↗</a>
-              <button id="csv5yBtn" class="btn">5년 CSV 다운로드</button>
+              <button id="csv5yBtn" class="btn">전체 CSV 다운로드</button>
             </div>
           </header>
 
-          <!-- 5Y KPI Cards -->
+          <!-- ALL KPI Cards -->
           <section class="kpi-grid">
             <div class="card">
               <div class="kpi-label" id="k5LatestLabel">최신 종가</div>
@@ -349,33 +349,36 @@
               <div id="k5LatestSub" class="kpi-sub">-</div>
             </div>
             <div class="card">
-              <div class="kpi-label">5년 최고가 (장중)</div>
+              <div class="kpi-label">역대 최고가 (장중)</div>
               <div id="k5High" class="kpi-val">-</div>
               <div id="k5HighDate" class="kpi-sub">-</div>
             </div>
             <div class="card">
-              <div class="kpi-label">5년 최저가 (장중)</div>
+              <div class="kpi-label">역대 최저가 (장중)</div>
               <div id="k5Low" class="kpi-val">-</div>
               <div id="k5LowDate" class="kpi-sub">-</div>
             </div>
             <div class="card">
-              <div class="kpi-label">5년 누적 변동 / 주5·주20 상태</div>
+              <div class="kpi-label">전체 누적 변동 / 주5·주20 상태</div>
               <div id="k5Return" class="kpi-val">-</div>
               <div id="k5WeeklyState" class="kpi-sub">-</div>
             </div>
           </section>
 
-          <!-- 5Y Chart (Moving Averages Only) -->
+          <!-- Full Historical Chart (Moving Averages Only) -->
           <section id="sec-5y-chart" class="card">
             <div class="chart-head">
               <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <strong>코스피 5년 차트 (일봉 기준 · 이동평균선)</strong>
+                <strong>코스피 전체 차트 (일봉 기준 · 이동평균선)</strong>
                 <div style="display:inline-flex; gap:4px;">
                   <button class="btn tf-btn active" data-tf="weekly">주봉 이평 (주5·20·60·120)</button>
                   <button class="btn tf-btn" data-tf="daily">일봉 이평 (5·20·60·120)</button>
                 </div>
                 <div style="display:inline-flex; gap:4px;">
-                  <button class="btn rng-btn active" data-years="5">5년</button>
+                  <button class="btn rng-btn active" data-years="0">전체</button>
+                  <button class="btn rng-btn" data-years="20">20년</button>
+                  <button class="btn rng-btn" data-years="10">10년</button>
+                  <button class="btn rng-btn" data-years="5">5년</button>
                   <button class="btn rng-btn" data-years="3">3년</button>
                   <button class="btn rng-btn" data-years="1">1년</button>
                 </div>
@@ -383,7 +386,7 @@
                   <button id="dragModeBtn" class="btn" title="드래그 동작 전환 (좌우 이동 / 영역 확대)">드래그: 좌우이동</button>
                   <button id="zoomInBtn" class="btn" title="가로 확대">+</button>
                   <button id="zoomOutBtn" class="btn" title="가로 축소">-</button>
-                  <button id="zoomResetBtn" class="btn" title="전체 5년으로 초기화">초기화</button>
+                  <button id="zoomResetBtn" class="btn" title="전체 기간으로 초기화">초기화</button>
                   <button id="save5yPngBtn" class="btn" title="하얀 배경 PNG 이미지로 저장">🖼 PNG 저장</button>
                   <button id="share5yBtn" class="btn" title="현재 확대 구간이 반영된 공유 링크 복사">🔗 공유</button>
                 </div>
@@ -408,12 +411,12 @@
             </div>
           </section>
 
-          <!-- 5Y Table -->
+          <!-- Full Table -->
           <section id="sec-5y-table" class="table-card">
             <div class="table-head">
-              <div><strong>5년 일별 기록</strong> <span id="count5y" style="font-size:12px; color:var(--muted); margin-left:6px;">-</span></div>
+              <div><strong>전체 일별 기록</strong> <span id="count5y" style="font-size:12px; color:var(--muted); margin-left:6px;">-</span></div>
               <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                <input id="search5y" class="search-input" type="search" placeholder="연도/날짜 검색 (예: 2025-05)" />
+                <input id="search5y" class="search-input" type="search" placeholder="연도/날짜 검색 (예: 1998-06, 2025-05)" />
                 <button id="sort5yBtn" class="btn">최신순 ↓</button>
               </div>
             </div>
@@ -427,14 +430,14 @@
             </div>
           </section>
 
-          <!-- 5Y Stats from Separate TXT File -->
+          <!-- Full Stats from Separate TXT File -->
           <section id="sec-5y-stats" class="card">
             <div class="chart-head" style="margin-bottom:10px;">
               <div>
-                <strong>5년 통계 요약</strong>
+                <strong>전체 기간 통계 요약</strong>
                 <span style="font-size:12px; color:var(--muted); margin-left:6px;">(참조 파일: <code>./data/kospi_5y_stats.txt</code>)</span>
               </div>
-              <a href="./data/kospi_5y_stats.txt" download="kospi_5y_stats.txt" class="btn">TXT 다운로드</a>
+              <a href="./data/kospi_5y_stats.txt" download="kospi_all_stats.txt" class="btn">TXT 다운로드</a>
             </div>
             <pre id="statsTxtBox" class="txt-pre">통계 텍스트 파일을 불러오는 중...</pre>
           </section>
@@ -546,7 +549,7 @@
     let ALL_ROWS = []; // newest first
     let META = {};
     let tf5y = "weekly"; // 'weekly' | 'daily'
-    let years5y = 5;
+    let years5y = 0;
     let maEnabled = { 5: true, 20: true, 60: true, 120: true };
     let hover5yIdx = -1;
     let hover30dIdx = -1;
@@ -793,12 +796,15 @@
       years5y = yrs;
       if (!cachedBase5y || !cachedBase5y.asc.length) return;
       const asc = cachedBase5y.asc;
-      const latestDate = new Date(asc[asc.length - 1].date + "T00:00:00Z");
-      const cutoff = new Date(latestDate);
-      cutoff.setUTCFullYear(cutoff.getUTCFullYear() - yrs);
-      const cutIso = cutoff.toISOString().slice(0, 10);
-      let sIdx = asc.findIndex((b) => b.date >= cutIso);
-      if (sIdx < 0) sIdx = 0;
+      let sIdx = 0;
+      if (yrs > 0) {
+        const latestDate = new Date(asc[asc.length - 1].date + "T00:00:00Z");
+        const cutoff = new Date(latestDate);
+        cutoff.setUTCFullYear(cutoff.getUTCFullYear() - yrs);
+        const cutIso = cutoff.toISOString().slice(0, 10);
+        sIdx = asc.findIndex((b) => b.date >= cutIso);
+        if (sIdx < 0) sIdx = 0;
+      }
       zoom5y = { start: sIdx, end: asc.length - 1 };
       hover5yIdx = -1;
       updateTfButtons();
@@ -894,7 +900,7 @@
     });
     document.getElementById("zoomInBtn").addEventListener("click", () => zoomAroundRatio(0.65, 0.5));
     document.getElementById("zoomOutBtn").addEventListener("click", () => zoomAroundRatio(1.5, 0.5));
-    document.getElementById("zoomResetBtn").addEventListener("click", () => applyYearPreset(5, true));
+    document.getElementById("zoomResetBtn").addEventListener("click", () => applyYearPreset(0, true));
 
     // Save 5Y chart as pure white-background PNG (even when dark mode is active)
     document.getElementById("save5yPngBtn").addEventListener("click", () => {
@@ -1286,7 +1292,7 @@
       draw5yChart();
     });
 
-    c5.addEventListener("dblclick", () => applyYearPreset(5, true));
+    c5.addEventListener("dblclick", () => applyYearPreset(0, true));
 
     c5.addEventListener("mousemove", (e) => {
       if (!ALL_ROWS.length || dragState) return;
