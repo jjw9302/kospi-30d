@@ -384,6 +384,8 @@
                   <button id="zoomInBtn" class="btn" title="가로 확대">+</button>
                   <button id="zoomOutBtn" class="btn" title="가로 축소">-</button>
                   <button id="zoomResetBtn" class="btn" title="전체 5년으로 초기화">초기화</button>
+                  <button id="save5yPngBtn" class="btn" title="하얀 배경 PNG 이미지로 저장">🖼 PNG 저장</button>
+                  <button id="share5yBtn" class="btn" title="현재 확대 구간이 반영된 공유 링크 복사">🔗 공유</button>
                 </div>
               </div>
               <div id="maLegend" class="ma-legend"></div>
@@ -759,6 +761,32 @@
 
       cachedBase5y = { asc, dailyMas, weeklyMas, weeklyCrosses, periods };
       applyYearPreset(years5y, false);
+
+      // Restore shared zoomed chart state from URL query params (?tf=weekly&from=YYYY-MM-DD&to=YYYY-MM-DD&ma=5,20,60,120)
+      const params = new URLSearchParams(window.location.search);
+      const qTf = params.get("tf");
+      if (qTf === "weekly" || qTf === "daily") tf5y = qTf;
+      const qMa = params.get("ma");
+      if (qMa !== null) {
+        const enabledSet = new Set(qMa.split(",").map((x) => Number(x.trim())).filter(Boolean));
+        for (const p of periods) maEnabled[p] = enabledSet.has(p);
+      }
+      const qFrom = params.get("from");
+      const qTo = params.get("to");
+      if (qFrom || qTo) {
+        let sIdx = qFrom ? asc.findIndex((b) => b.date >= qFrom) : 0;
+        if (sIdx < 0) sIdx = 0;
+        let eIdx = asc.length - 1;
+        if (qTo) {
+          for (let i = asc.length - 1; i >= 0; i--) {
+            if (asc[i].date <= qTo) { eIdx = i; break; }
+          }
+        }
+        if (eIdx - sIdx >= 5) {
+          clampZoom(sIdx, eIdx);
+          document.querySelectorAll(".rng-btn").forEach((b) => b.classList.remove("active"));
+        }
+      }
     }
 
     function applyYearPreset(yrs, redraw = true) {
@@ -867,6 +895,86 @@
     document.getElementById("zoomInBtn").addEventListener("click", () => zoomAroundRatio(0.65, 0.5));
     document.getElementById("zoomOutBtn").addEventListener("click", () => zoomAroundRatio(1.5, 0.5));
     document.getElementById("zoomResetBtn").addEventListener("click", () => applyYearPreset(5, true));
+
+    // Save 5Y chart as pure white-background PNG (even when dark mode is active)
+    document.getElementById("save5yPngBtn").addEventListener("click", () => {
+      if (!ALL_ROWS.length) return;
+      const { bars, periods } = get5ySeries();
+      if (bars.length < 2) return;
+      const prevTheme = document.documentElement.getAttribute("data-theme");
+      const prevHover = hover5yIdx;
+      hover5yIdx = -1;
+      if (prevTheme === "dark") document.documentElement.setAttribute("data-theme", "light");
+      draw5yChart();
+
+      // Compose onto a clean white PNG canvas with header title & legend
+      const headerH = 44;
+      const dpr = window.devicePixelRatio || 1;
+      const out = document.createElement("canvas");
+      out.width = c5.width;
+      out.height = c5.height + Math.round(headerH * dpr);
+      const octx = out.getContext("2d");
+      octx.fillStyle = "#ffffff";
+      octx.fillRect(0, 0, out.width, out.height);
+      octx.save();
+      octx.scale(dpr, dpr);
+      const prefix = tf5y === "weekly" ? "주" : "MA";
+      const maLabels = periods.filter((p) => maEnabled[p]).map((p) => (tf5y === "weekly" && p === 20 ? "주20⭐" : `${prefix}${p}`)).join(" · ");
+      octx.fillStyle = "#0f172a";
+      octx.font = "bold 14px -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif";
+      octx.fillText(`KOSPI (${bars[0].date} ~ ${bars[bars.length - 1].date})`, 16, 20);
+      octx.fillStyle = "#64748b";
+      octx.font = "11.5px -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif";
+      octx.fillText(`${tf5y === "weekly" ? "주봉 이평" : "일봉 이평"}: ${maLabels || "없음"} · 출처: 네이버 증권`, 16, 36);
+      octx.restore();
+      octx.drawImage(c5, 0, Math.round(headerH * dpr));
+
+      // Restore previous theme & hover
+      if (prevTheme === "dark") document.documentElement.setAttribute("data-theme", "dark");
+      hover5yIdx = prevHover;
+      draw5yChart();
+
+      const a = document.createElement("a");
+      a.href = out.toDataURL("image/png");
+      a.download = `kospi_5y_${bars[0].date.replace(/-/g, "")}_${bars[bars.length - 1].date.replace(/-/g, "")}.png`;
+      a.click();
+    });
+
+    // Share current zoomed 5Y chart URL (?tf=...&from=...&to=...&ma=...#kospi-5y/sec-5y-chart)
+    document.getElementById("share5yBtn").addEventListener("click", async (e) => {
+      if (!ALL_ROWS.length) return;
+      const { bars, periods } = get5ySeries();
+      if (bars.length < 2) return;
+      const url = new URL(window.location.href);
+      url.searchParams.set("tf", tf5y);
+      url.searchParams.set("from", bars[0].date);
+      url.searchParams.set("to", bars[bars.length - 1].date);
+      url.searchParams.set("ma", periods.filter((p) => maEnabled[p]).join(","));
+      url.hash = "kospi-5y/sec-5y-chart";
+      const shareUrl = url.toString();
+      history.replaceState(null, "", shareUrl);
+
+      const btn = e.currentTarget;
+      const origText = btn.textContent;
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: `KOSPI 5년 차트 (${bars[0].date} ~ ${bars[bars.length - 1].date})`,
+            url: shareUrl,
+          });
+          return;
+        }
+      } catch (_) {}
+
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        btn.textContent = "링크 복사됨 ✓";
+      } catch (_) {
+        window.prompt("아래 공유 링크를 복사하세요:", shareUrl);
+        btn.textContent = "공유 준비 ✓";
+      }
+      setTimeout(() => { btn.textContent = origText; }, 2200);
+    });
     // Custom proportional scrollbar thumb drag (mouse + touch) & track click
     let thumbDrag = null;
     function startThumbDrag(clientX) {
@@ -1025,7 +1133,8 @@
       const xFor = (i) => pad.left + (i / (bars.length - 1)) * plotW;
       const yFor = (v) => pad.top + ((yMax - v) / (yMax - yMin)) * plotH;
 
-      ctx5.clearRect(0, 0, W, H);
+      ctx5.fillStyle = cssVar("--card") || "#ffffff";
+      ctx5.fillRect(0, 0, W, H);
       ctx5.font = "11px system-ui, sans-serif";
       ctx5.textAlign = "right"; ctx5.textBaseline = "middle";
       for (let i = 0; i <= 5; i++) {
@@ -1228,7 +1337,8 @@
       const xFor = (i) => pad.left + (i / (chrono.length - 1)) * plotW;
       const yFor = (v) => pad.top + ((yMax - v) / (yMax - yMin)) * plotH;
 
-      ctx30.clearRect(0, 0, W, H);
+      ctx30.fillStyle = cssVar("--card") || "#ffffff";
+      ctx30.fillRect(0, 0, W, H);
       ctx30.font = "11px system-ui, sans-serif";
       ctx30.textAlign = "right"; ctx30.textBaseline = "middle";
       for (let i = 0; i <= 4; i++) {
