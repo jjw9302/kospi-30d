@@ -1,0 +1,37 @@
+name: Update KOSPI 30-Day Dashboard
+
+on:
+  schedule:
+    # 매주 월~금 오후 4시 30분 KST (UTC 07:30) 자동 실행
+    - cron: "30 7 * * 1-5"
+  workflow_dispatch: # GitHub 웹 UI에서 수동 실행도 가능
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fetch latest KOSPI 30-day data & update index.html
+        run: python3 update_kospi.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet index.html; then
+            git add index.html
+            git commit -m "chore: update KOSPI 30-day data ($(date +'%Y-%m-%d'))"
+            git push
+          else
+            echo "No changes to commit."
+          fi
