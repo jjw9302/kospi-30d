@@ -739,53 +739,23 @@
       const dailyMas = {};
       for (const p of periods) dailyMas[p] = calcSMA(dCloses, p);
 
-      // Compute weekly MAs and linearly interpolate between consecutive week-end daily indices for silky smooth curves
-      const weekly = buildWeekly(asc);
-      const wCloses = weekly.map((w) => w.close);
-      const wRawMas = {};
-      for (const p of periods) wRawMas[p] = calcSMA(wCloses, p);
-
-      const dateToDailyIdx = new Map();
-      asc.forEach((d, idx) => dateToDailyIdx.set(d.date, idx));
-      const weekEndDailyIdxs = weekly.map((w) => dateToDailyIdx.get(w.date));
-
+      // Compute weekly MAs smoothly on daily closes (1 week = 5 trading days: 25/100/300/600d rolling SMA)
+      // This eliminates all weekly stair-steps and Friday kinks while matching weekly MA5/20/60/120
       const weeklyMas = {};
       for (const p of periods) {
-        const arr = new Array(asc.length).fill(null);
-        const pts = [];
-        for (let wi = 0; wi < weekly.length; wi++) {
-          const val = wRawMas[p][wi];
-          const di = weekEndDailyIdxs[wi];
-          if (val !== null && di !== undefined) pts.push({ di, val });
-        }
-        for (let k = 0; k < pts.length; k++) {
-          arr[pts[k].di] = pts[k].val;
-          if (k + 1 < pts.length) {
-            const a = pts[k], b = pts[k + 1];
-            const dist = b.di - a.di;
-            for (let di = a.di + 1; di < b.di; di++) {
-              const t = (di - a.di) / dist;
-              arr[di] = a.val + (b.val - a.val) * t;
-            }
-          }
-        }
-        weeklyMas[p] = arr;
+        weeklyMas[p] = calcSMA(dCloses, p * 5);
       }
 
-      // Weekly MA5 x MA20 crossover dates mapped to daily index
-      const crossDates = new Map();
-      const wm5 = wRawMas[5], wm20 = wRawMas[20];
-      for (let i = 1; i < weekly.length; i++) {
+      // Weekly MA5 x MA20 crossover markers directly at exact curve intersections
+      const weeklyCrosses = [];
+      const wm5 = weeklyMas[5], wm20 = weeklyMas[20];
+      for (let i = 1; i < asc.length; i++) {
         if (wm5[i - 1] === null || wm20[i - 1] === null || wm5[i] === null || wm20[i] === null) continue;
         const prevD = wm5[i - 1] - wm20[i - 1];
         const currD = wm5[i] - wm20[i];
-        if (prevD <= 0 && currD > 0) crossDates.set(weekly[i].date, "golden");
-        else if (prevD >= 0 && currD < 0) crossDates.set(weekly[i].date, "dead");
+        if (prevD <= 0 && currD > 0) weeklyCrosses.push({ idx: i, type: "golden" });
+        else if (prevD >= 0 && currD < 0) weeklyCrosses.push({ idx: i, type: "dead" });
       }
-      const weeklyCrosses = [];
-      asc.forEach((d, idx) => {
-        if (crossDates.has(d.date)) weeklyCrosses.push({ idx, type: crossDates.get(d.date) });
-      });
 
       cachedBase5y = { asc, dailyMas, weeklyMas, weeklyCrosses, periods };
       applyYearPreset(years5y, false);
