@@ -365,7 +365,7 @@
                   <button class="btn rng-btn" data-years="1">1년</button>
                 </div>
                 <div style="display:inline-flex; gap:4px;">
-                  <button id="dragModeBtn" class="btn" title="드래그 동작 전환 (영역 확대 / 좌우 이동)">드래그: 영역확대</button>
+                  <button id="dragModeBtn" class="btn" title="드래그 동작 전환 (좌우 이동 / 영역 확대)">드래그: 좌우이동</button>
                   <button id="zoomInBtn" class="btn" title="가로 확대">+</button>
                   <button id="zoomOutBtn" class="btn" title="가로 축소">-</button>
                   <button id="zoomResetBtn" class="btn" title="전체 5년으로 초기화">초기화</button>
@@ -375,12 +375,17 @@
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
               <div id="hover5y" style="font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums;">
-                마우스 휠(스크롤) 또는 드래그로 가로폭 확대·축소 · 더블클릭 초기화
+                휠(스크롤): 가로 확대·축소 · 드래그: 좌우 이동 · Shift+드래그: 영역 확대 · 더블클릭: 초기화
               </div>
               <div id="zoomInfo5y" style="font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums;"></div>
             </div>
             <div class="chart-wrap">
-              <canvas id="chart5y" style="cursor:crosshair; touch-action:none;"></canvas>
+              <canvas id="chart5y" style="cursor:grab; touch-action:none;"></canvas>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+              <button id="panLeftBtn" class="btn" style="padding:3px 8px;" title="과거 방향으로 이동">◀</button>
+              <input id="panSlider5y" type="range" min="0" max="1000" value="1000" style="flex:1; accent-color:var(--ma20); cursor:pointer;" aria-label="차트 좌우 이동 스크롤바" />
+              <button id="panRightBtn" class="btn" style="padding:3px 8px;" title="최신 방향으로 이동">▶</button>
             </div>
           </section>
 
@@ -648,9 +653,20 @@
 
     // ===== 5Y Chart (Dense Daily Price + Weekly/Daily Moving Averages + Zoom/Pan) =====
     let zoom5y = { start: 0, end: 0 };
-    let dragMode = "zoom"; // 'zoom' | 'pan'
+    let dragMode = "pan"; // 'pan' | 'zoom'
     let dragState = null;  // { mode, startX, currX, origStart, origEnd }
     let cachedBase5y = null; // { asc, dailyMas, weeklyMas, weeklyCrosses }
+
+    const elPanSlider = document.getElementById("panSlider5y");
+    function syncPanSlider() {
+      if (!cachedBase5y) return;
+      const n = cachedBase5y.asc.length;
+      const span = zoom5y.end - zoom5y.start;
+      const maxStart = Math.max(0, (n - 1) - span);
+      elPanSlider.max = String(maxStart);
+      elPanSlider.value = String(zoom5y.start);
+      elPanSlider.disabled = maxStart === 0;
+    }
 
     function build5yCache() {
       const asc = [...ALL_ROWS].reverse();
@@ -798,9 +814,46 @@
     document.getElementById("zoomInBtn").addEventListener("click", () => zoomAroundRatio(0.65, 0.5));
     document.getElementById("zoomOutBtn").addEventListener("click", () => zoomAroundRatio(1.5, 0.5));
     document.getElementById("zoomResetBtn").addEventListener("click", () => applyYearPreset(5, true));
+    elPanSlider.addEventListener("input", () => {
+      if (!cachedBase5y) return;
+      const span = zoom5y.end - zoom5y.start;
+      const newStart = Number(elPanSlider.value);
+      clampZoom(newStart, newStart + span);
+      document.querySelectorAll(".rng-btn").forEach((b) => b.classList.remove("active"));
+      draw5yChart();
+    });
+    function panByFraction(frac) {
+      if (!cachedBase5y) return;
+      const span = zoom5y.end - zoom5y.start;
+      const delta = Math.max(5, Math.round(span * Math.abs(frac))) * (frac < 0 ? -1 : 1);
+      clampZoom(zoom5y.start + delta, zoom5y.end + delta);
+      document.querySelectorAll(".rng-btn").forEach((b) => b.classList.remove("active"));
+      draw5yChart();
+    }
+    document.getElementById("panLeftBtn").addEventListener("click", () => panByFraction(-0.25));
+    document.getElementById("panRightBtn").addEventListener("click", () => panByFraction(0.25));
 
     const c5 = document.getElementById("chart5y");
     const ctx5 = c5.getContext("2d");
+
+    // Touch pan support for mobile/tablet
+    let touchPan = null;
+    c5.addEventListener("touchstart", (e) => {
+      if (!cachedBase5y || e.touches.length !== 1) return;
+      touchPan = { startX: e.touches[0].clientX, origStart: zoom5y.start, origEnd: zoom5y.end };
+    }, { passive: true });
+    c5.addEventListener("touchmove", (e) => {
+      if (!touchPan || !cachedBase5y || e.touches.length !== 1) return;
+      e.preventDefault();
+      const rect = c5.getBoundingClientRect();
+      const plotW = Math.max(50, rect.width - 78);
+      const span = touchPan.origEnd - touchPan.origStart;
+      const deltaBars = Math.round(((touchPan.startX - e.touches[0].clientX) / plotW) * span);
+      clampZoom(touchPan.origStart + deltaBars, touchPan.origEnd + deltaBars);
+      document.querySelectorAll(".rng-btn").forEach((b) => b.classList.remove("active"));
+      draw5yChart();
+    }, { passive: false });
+    c5.addEventListener("touchend", () => { touchPan = null; });
 
     function draw5yChart() {
       if (!ALL_ROWS.length) return;
@@ -813,22 +866,24 @@
 
       const { bars, mas, periods, crosses } = get5ySeries();
       if (bars.length < 2) return;
-
-      document.getElementById("zoomInfo5y").textContent =
-        `표시 구간: ${bars[0].date} ~ ${bars[bars.length - 1].date} (${bars.length.toLocaleString("ko-KR")}거래일)`;
+      syncPanSlider();
 
       const W = rect.width, H = rect.height;
       const pad = { top: 18, right: 18, bottom: 28, left: 60 };
       const plotW = W - pad.left - pad.right, plotH = H - pad.top - pad.bottom;
 
+      // Relative Y-axis auto-fit strictly from visible window's min/max values
       const allVals = bars.map((b) => b.close);
       for (const p of periods) {
         if (!maEnabled[p]) continue;
         for (const v of mas[p]) if (v !== null) allVals.push(v);
       }
       const minV = Math.min(...allVals), maxV = Math.max(...allVals);
-      const m = (maxV - minV) * 0.08 || 50;
+      const m = (maxV - minV) * 0.05 || 20;
       const yMin = minV - m, yMax = maxV + m;
+
+      document.getElementById("zoomInfo5y").textContent =
+        `표시 구간: ${bars[0].date} ~ ${bars[bars.length - 1].date} (${bars.length.toLocaleString("ko-KR")}거래일) · 구간 최저 ${fmt(minV)} / 최고 ${fmt(maxV)}`;
       const xFor = (i) => pad.left + (i / (bars.length - 1)) * plotW;
       const yFor = (v) => pad.top + ((yMax - v) / (yMax - yMin)) * plotH;
 
