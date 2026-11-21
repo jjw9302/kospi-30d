@@ -246,9 +246,9 @@
             <button class="nav-caret-btn" aria-label="하위 메뉴 펼치기/접기" title="펼치기/접기">▾</button>
           </div>
           <ul class="nav-sub-list">
-            <li><a class="nav-sub-link" data-view="view-kospi-5y" data-target="sec-5y-stats">5년 통계 (TXT)</a></li>
-            <li><a class="nav-sub-link" data-view="view-kospi-5y" data-target="sec-5y-chart">5년 차트 (이동평균선)</a></li>
+            <li><a class="nav-sub-link" data-view="view-kospi-5y" data-target="sec-5y-chart">5년 차트 (주 이평선)</a></li>
             <li><a class="nav-sub-link" data-view="view-kospi-5y" data-target="sec-5y-table">5년 일별 기록</a></li>
+            <li><a class="nav-sub-link" data-view="view-kospi-5y" data-target="sec-5y-stats">5년 통계 (TXT)</a></li>
           </ul>
         </div>
 
@@ -375,18 +375,6 @@
             </div>
           </section>
 
-          <!-- 5Y Stats from Separate TXT File -->
-          <section id="sec-5y-stats" class="card">
-            <div class="chart-head" style="margin-bottom:10px;">
-              <div>
-                <strong>5년 통계 요약</strong>
-                <span style="font-size:12px; color:var(--muted); margin-left:6px;">(참조 파일: <code>./data/kospi_5y_stats.txt</code>)</span>
-              </div>
-              <a href="./data/kospi_5y_stats.txt" download="kospi_5y_stats.txt" class="btn">TXT 다운로드</a>
-            </div>
-            <pre id="statsTxtBox" class="txt-pre">통계 텍스트 파일을 불러오는 중...</pre>
-          </section>
-
           <!-- 5Y Table -->
           <section id="sec-5y-table" class="table-card">
             <div class="table-head">
@@ -404,6 +392,18 @@
                 <tbody id="body5y"></tbody>
               </table>
             </div>
+          </section>
+
+          <!-- 5Y Stats from Separate TXT File -->
+          <section id="sec-5y-stats" class="card">
+            <div class="chart-head" style="margin-bottom:10px;">
+              <div>
+                <strong>5년 통계 요약</strong>
+                <span style="font-size:12px; color:var(--muted); margin-left:6px;">(참조 파일: <code>./data/kospi_5y_stats.txt</code>)</span>
+              </div>
+              <a href="./data/kospi_5y_stats.txt" download="kospi_5y_stats.txt" class="btn">TXT 다운로드</a>
+            </div>
+            <pre id="statsTxtBox" class="txt-pre">통계 텍스트 파일을 불러오는 중...</pre>
           </section>
         </div>
 
