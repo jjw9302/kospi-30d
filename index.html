@@ -293,8 +293,8 @@
           </div>
           <ul class="nav-sub-list">
             <li><a class="nav-sub-link" data-view="view-wisdom" data-target="w-magic">시간 복리 마법</a></li>
-            <li><a class="nav-sub-link" data-view="view-wisdom" data-target="w-mulmit">물밑-홈</a></li>
             <li><a class="nav-sub-link" data-view="view-wisdom" data-target="w-naejae">내재-커버드콜</a></li>
+            <li><a class="nav-sub-link" data-view="view-wisdom" data-target="w-mulmit">물밑-홈</a></li>
           </ul>
         </div>
 
@@ -519,15 +519,15 @@
               <div class="wisdom-body">주5, 주20 이평선에 만나는 시간에 무슨일이 생긴다. 위 코스피 참조.</div>
               <a href="#sec-5y-chart" id="jumpToKospi5yWeekly" class="wisdom-link">📊 코스피 5년 주봉(주5·주20 이평선) 차트 바로 보기 →</a>
             </li>
-            <li id="w-mulmit" class="wisdom-item">
-              <div class="wisdom-title">2. 물밑-홈</div>
-              <div class="wisdom-body">시장은 24시간 선물 현물 숏풋 롱콜 옵션으로 돌아간다.</div>
-              <a href="https://mulmit.com/" target="_blank" rel="noopener noreferrer" class="wisdom-link">https://mulmit.com/ ↗</a>
-            </li>
             <li id="w-naejae" class="wisdom-item">
-              <div class="wisdom-title">3. 내재-커버드콜</div>
+              <div class="wisdom-title">2. 내재-커버드콜</div>
               <div class="wisdom-body">작전은 다양하고, 하늘이 무너져도 솟아날 구멍은 있다. 단, 미래는 알 수 없다.</div>
               <a href="https://www.naejae.com/covered-call" target="_blank" rel="noopener noreferrer" class="wisdom-link">https://www.naejae.com/covered-call ↗</a>
+            </li>
+            <li id="w-mulmit" class="wisdom-item">
+              <div class="wisdom-title">3. 물밑-홈</div>
+              <div class="wisdom-body">시장은 24시간 선물 현물 숏풋 롱콜 옵션으로 돌아간다.</div>
+              <a href="https://mulmit.com/" target="_blank" rel="noopener noreferrer" class="wisdom-link">https://mulmit.com/ ↗</a>
             </li>
           </ul>
         </div>
@@ -577,13 +577,32 @@
       }
     });
 
-    function switchView(viewId, scrollTargetId = null) {
+    const VIEW_TO_HASH = {
+      "view-kospi-5y": "kospi-5y",
+      "view-kospi-30d": "kospi-30d",
+      "view-wisdom": "wisdom",
+    };
+    const HASH_TO_VIEW = {
+      "kospi-5y": "view-kospi-5y",
+      "kospi-30d": "view-kospi-30d",
+      "wisdom": "view-wisdom",
+    };
+
+    function switchView(viewId, scrollTargetId = null, updateHash = true) {
+      if (!VIEW_TO_HASH[viewId]) viewId = "view-kospi-5y";
       document.querySelectorAll(".view-pane").forEach((p) => p.classList.toggle("active", p.id === viewId));
       document.querySelectorAll(".nav-main-btn[data-view]").forEach((b) => {
         const active = b.dataset.view === viewId;
         b.classList.toggle("active", active);
         if (active) b.closest(".nav-group")?.classList.remove("collapsed");
       });
+      if (updateHash) {
+        const slug = VIEW_TO_HASH[viewId];
+        const nextHash = scrollTargetId ? `#${slug}/${scrollTargetId}` : `#${slug}`;
+        if (window.location.hash !== nextHash) {
+          history.replaceState(null, "", nextHash);
+        }
+      }
       closeDrawer();
       requestAnimationFrame(() => {
         if (viewId === "view-kospi-5y") draw5yChart();
@@ -595,6 +614,18 @@
         }
       });
     }
+
+    function restoreViewFromHash() {
+      const raw = (window.location.hash || "").replace(/^#/, "");
+      if (!raw) return;
+      const [slug, targetId] = raw.split("/");
+      const viewId = HASH_TO_VIEW[slug];
+      if (viewId) {
+        switchView(viewId, targetId || null, false);
+      }
+    }
+
+    window.addEventListener("hashchange", restoreViewFromHash);
 
     document.querySelectorAll(".nav-main-btn[data-view]").forEach((btn) => {
       btn.addEventListener("click", () => switchView(btn.dataset.view));
@@ -613,6 +644,9 @@
       updateTfButtons();
       switchView("view-kospi-5y", "sec-5y-chart");
     });
+
+    // Apply initial hash route immediately on load (so refresh keeps current tab)
+    restoreViewFromHash();
 
     // Theme toggle
     function toggleTheme() {
