@@ -356,7 +356,7 @@
               <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <strong>코스피 5년 차트 (이동평균선)</strong>
                 <div style="display:inline-flex; gap:4px;">
-                  <button class="btn tf-btn active" data-tf="weekly">주봉 (주5·주20)</button>
+                  <button class="btn tf-btn active" data-tf="weekly">주봉 (주5·20·60·120)</button>
                   <button class="btn tf-btn" data-tf="daily">일봉 (5·20·60·120)</button>
                 </div>
                 <div style="display:inline-flex; gap:4px;">
@@ -641,7 +641,7 @@
     function get5ySeries() {
       const asc = [...ALL_ROWS].reverse();
       const base = tf5y === "weekly" ? buildWeekly(asc) : asc;
-      const periods = tf5y === "weekly" ? [5, 20] : [5, 20, 60, 120];
+      const periods = [5, 20, 60, 120];
       const closes = base.map((b) => b.close);
       const mas = {};
       for (const p of periods) mas[p] = calcSMA(closes, p);
@@ -663,7 +663,7 @@
     const MA_COLORS = { 5: "--ma5", 20: "--ma20", 60: "--ma60", 120: "--ma120" };
 
     function renderMaLegend() {
-      const periods = tf5y === "weekly" ? [5, 20] : [5, 20, 60, 120];
+      const periods = [5, 20, 60, 120];
       const prefix = tf5y === "weekly" ? "주" : "MA";
       const el = document.getElementById("maLegend");
       el.innerHTML = periods.map((p) => `
