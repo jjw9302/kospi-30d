@@ -774,13 +774,16 @@
       const periods = [5, 20, 60, 120];
       const prefix = tf5y === "weekly" ? "주" : "MA";
       const el = document.getElementById("maLegend");
-      el.innerHTML = periods.map((p) => `
+      el.innerHTML = periods.map((p) => {
+        const label = tf5y === "weekly" && p === 20 ? "주20⭐" : `${prefix}${p}`;
+        return `
         <label class="ma-toggle">
           <input type="checkbox" data-ma="${p}" ${maEnabled[p] ? "checked" : ""} />
           <span class="swatch" style="background:var(${MA_COLORS[p]})"></span>
-          <span>${prefix}${p}</span>
+          <span>${label}</span>
         </label>
-      `).join("");
+      `;
+      }).join("");
       el.querySelectorAll("input[data-ma]").forEach((chk) => {
         chk.addEventListener("change", () => {
           maEnabled[Number(chk.dataset.ma)] = chk.checked;
