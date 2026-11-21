@@ -43,12 +43,18 @@ def fetch_sise_range(start_yyyymmdd: str, end_yyyymmdd: str) -> list[dict]:
         if len(ds) != 8 or not ds.isdigit():
             continue
         iso = f"{ds[:4]}-{ds[4:6]}-{ds[6:8]}"
+        cl = round(float(item[4]), 2)
+        if cl <= 0:
+            continue
+        op = round(float(item[1]), 2) or cl
+        hi = round(float(item[2]), 2) or cl
+        lo = round(float(item[3]), 2) or cl
         rows.append({
             "date": iso,
-            "open": round(float(item[1]), 2),
-            "high": round(float(item[2]), 2),
-            "low": round(float(item[3]), 2),
-            "close": round(float(item[4]), 2),
+            "open": op,
+            "high": max(hi, cl),
+            "low": min(lo, cl) if lo > 0 else cl,
+            "close": cl,
             "volume": int(float(item[5])),
         })
     return rows
@@ -171,7 +177,7 @@ def build_stats_txt(rows_desc: list[dict], mode: str, diff_count: int, checked_c
     fmt_ma = lambda v: f"{v:,.2f}" if v is not None else "-"
     lines = [
         "============================================================",
-        "  KOSPI 최근 5년 통계 요약 (출처: 네이버 증권)",
+        "  KOSPI 전체 기간 통계 요약 (1990 ~ 현재 · 출처: 네이버 증권)",
         "============================================================",
         f"최종 갱신 시각 (KST) : {now_kst}",
         f"최근 검증 모드       : {mode} (비교 {checked_count}거래일 / 변동 {diff_count}건)",
@@ -179,19 +185,19 @@ def build_stats_txt(rows_desc: list[dict], mode: str, diff_count: int, checked_c
         "",
         "[1. 핵심 요약]",
         f"  - 최신 종가 ({latest['date']}) : {latest['close']:,.2f} ({latest['change']:+,.2f} / {latest['ratio']:+.2f}%)",
-        f"  - 5년 최고가 (장중)         : {high_row['high']:,.2f} ({high_row['date']}, 종가 {high_row['close']:,.2f})",
-        f"  - 5년 최저가 (장중)         : {low_row['low']:,.2f} ({low_row['date']}, 종가 {low_row['close']:,.2f})",
-        f"  - 5년 평균 종가             : {avg_close:,.2f}",
-        f"  - 5년 누적 변동             : {total_diff:+,.2f} ({total_pct:+.2f}%)",
-        f"  - 상승일 / 하락일           : {up_days:,}일 / {down_days:,}일 (승률 {up_days / len(rows_desc) * 100:.1f}%)",
+        f"  - 역대 최고가 (장중)         : {high_row['high']:,.2f} ({high_row['date']}, 종가 {high_row['close']:,.2f})",
+        f"  - 역대 최저가 (장중)         : {low_row['low']:,.2f} ({low_row['date']}, 종가 {low_row['close']:,.2f})",
+        f"  - 전체 평균 종가             : {avg_close:,.2f}",
+        f"  - 전체 누적 변동             : {total_diff:+,.2f} ({total_pct:+.2f}%)",
+        f"  - 상승일 / 하락일            : {up_days:,}일 / {down_days:,}일 (승률 {up_days / len(rows_desc) * 100:.1f}%)",
         "",
         "[2. 이동평균선 현황]",
         f"  - 일봉 MA5 / MA20 / MA60 / MA120 : {fmt_ma(d_ma5)} / {fmt_ma(d_ma20)} / {fmt_ma(d_ma60)} / {fmt_ma(d_ma120)}",
         f"  - 주봉 주5 / 주20 / 주60 / 주120 : {fmt_ma(w_ma5[-1])} / {fmt_ma(w_ma20[-1])} / {fmt_ma(w_ma60[-1])} / {fmt_ma(w_ma120[-1])} ({'정배열(주5>주20)' if w_ma5[-1] >= w_ma20[-1] else '역배열(주5<주20)'})",
         "",
-        "[3. 주5 · 주20 이평선 교차 이력 (최근 6건)]",
+        "[3. 주5 · 주20 이평선 교차 이력 (최근 10건)]",
     ]
-    for dt, label, cl in crosses[-6:][::-1]:
+    for dt, label, cl in crosses[-10:][::-1]:
         lines.append(f"  - {dt} | {label} | 주간종가 {cl:,.2f}")
 
     lines.append("")
@@ -224,14 +230,13 @@ def run(mode: str) -> None:
         for r in loaded.get("rows", []):
             existing_by_date[r["date"]] = r
 
-    # If no existing data, force full 5-year bootstrap
+    # If no existing data, force full historical bootstrap
     effective_mode = mode
     if not existing_by_date:
         effective_mode = "full"
 
     if effective_mode in ("full", "monthly"):
-        start_dt = (now - datetime.timedelta(days=365 * 5 + 5)).strftime("%Y%m%d")
-        fetched = fetch_sise_range(start_dt, today_str)
+        fetched = fetch_sise_range("19800101", today_str)
         # Also merge latest mobile quote to reflect intraday/latest close immediately
         for m in fetch_recent_mobile(5):
             fetched.append(m)
@@ -271,11 +276,7 @@ def run(mode: str) -> None:
                     nr["volume"] = old["volume"]
                 existing_by_date[d] = nr
 
-    # Trim anything older than 5 years + 5 days
-    cutoff = (now - datetime.timedelta(days=365 * 5 + 5)).strftime("%Y-%m-%d")
-    trimmed = {d: r for d, r in existing_by_date.items() if d >= cutoff}
-
-    rows_desc = recompute_changes(trimmed)
+    rows_desc = recompute_changes(existing_by_date)
 
     payload = {
         "meta": {
