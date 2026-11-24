@@ -1,3 +1,4 @@
+[2026-11-24 14:40:45 KST] mode=10m     checked=7    diff=1    total=9516 latest=2026-11-24(5,056.27)
 [2026-11-24 13:42:32 KST] mode=10m     checked=7    diff=1    total=9516 latest=2026-11-24(5,048.74)
 [2026-11-24 12:39:25 KST] mode=10m     checked=7    diff=1    total=9516 latest=2026-11-24(5,045.46)
 [2026-11-24 11:41:24 KST] mode=10m     checked=7    diff=1    total=9516 latest=2026-11-24(5,037.15)
