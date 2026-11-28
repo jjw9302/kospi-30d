@@ -1,3 +1,4 @@
+[2026-11-28 17:49:33 KST] mode=weekly  checked=245  diff=0    total=9519 latest=2026-11-27(4,915.68)
 [2026-11-27 15:43:46 KST] mode=10m     checked=7    diff=1    total=9519 latest=2026-11-27(4,915.68)
 [2026-11-27 14:43:42 KST] mode=10m     checked=7    diff=1    total=9519 latest=2026-11-27(4,914.97)
 [2026-11-27 13:47:11 KST] mode=10m     checked=7    diff=1    total=9519 latest=2026-11-27(4,894.82)
